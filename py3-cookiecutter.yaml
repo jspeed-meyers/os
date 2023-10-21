@@ -1,0 +1,40 @@
+package:
+  name: py3-cookiecutter
+  version: 2.4.0
+  epoch: 0
+  description: A cross-platform command-line utility that creates projects from cookiecutters (project templates), e.g. Python package projects, C projects.
+  copyright:
+    - license: BSD-3-Clause
+  dependencies:
+    runtime:
+      - python3
+
+environment:
+  contents:
+    packages:
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - py3-setuptools
+      - python3
+      - wolfi-base
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/cookiecutter/cookiecutter
+      tag: ${{package.version}}
+      expected-commit: 24020484395f3962156dfcee5e9e1d6f2013da07
+
+  - name: Python Build
+    runs: python setup.py build
+
+  - name: Python Install
+    runs: python setup.py install --prefix=/usr --root="${{targets.destdir}}"
+
+  - uses: strip
+
+update:
+  enabled: true
+  github:
+    identifier: cookiecutter/cookiecutter
