@@ -1,10 +1,10 @@
 package:
   name: tflint
-  version: 0.48.0
-  epoch: 3
+  version: 0.53.0
+  epoch: 1
   description: A Pluggable Terraform Linter
   copyright:
-    - license: MPL 2.0
+    - license: MPL-2.0
 
 environment:
   contents:
@@ -18,8 +18,8 @@ environment:
 pipeline:
   - uses: git-checkout
     with:
+      expected-commit: 51fe0738442a0cbcc6d55ec7326abe807bce763f
       repository: https://github.com/terraform-linters/tflint
-      expected-commit: c88c0175d0fe5b4255450119a69f62a269beff89
       tag: v${{package.version}}
 
   - runs: |
@@ -35,3 +35,10 @@ update:
     identifier: terraform-linters/tflint
     use-tag: true
     strip-prefix: v
+
+test:
+  pipeline:
+    - name: version check
+      runs: |
+        tflint --version
+        tflint --help

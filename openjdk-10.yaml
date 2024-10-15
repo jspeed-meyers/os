@@ -1,45 +1,47 @@
 package:
   name: openjdk-10
   version: 10.0.2
-  epoch: 4
+  epoch: 5
   description: "Oracle OpenJDK 10"
   copyright:
     - license: GPL-2.0-with-classpath-exception
   dependencies:
     runtime:
-      - openjdk-10-jre
       - java-cacerts
+      - openjdk-10-jre
 
 environment:
   contents:
     packages:
-      - wolfi-base
+      - alsa-lib-dev
+      - bash
       - build-base
       - ca-certificates
-      - bash
-      - zip
-      - file
-      - gawk
-      - linux-headers
       - coreutils
-      - freetype-dev
       - cups-dev
-      - libx11-dev
-      - libxext-dev
-      - libxrender-dev
-      - libxrandr-dev
-      - libxtst-dev
-      - libxt-dev
-      - alsa-lib-dev
-      - libffi-dev
+      - file
       - fontconfig-dev
-      - libjpeg-turbo-dev
+      - freetype-dev
+      - gawk
       - giflib-dev
       - lcms2-dev
+      - libffi-dev
+      - libjpeg-turbo-dev
       - libpng-dev
-      - zlib-dev
+      - libx11-dev
+      - libxext-dev
+      - libxrandr-dev
+      - libxrender-dev
+      - libxt-dev
+      - libxtst-dev
+      - linux-headers
       - openjdk-9
       - openjdk-9-default-jvm
+      - wolfi-base
+      - zip
+      - zlib-dev
+  environment:
+    CFLAGS: -Wno-int-conversion
 
 pipeline:
   - uses: fetch
@@ -55,11 +57,10 @@ pipeline:
 
   - uses: patch
     with:
-      patches: aarch64.patch JDK-8241296.patch JDK-8245051.patch fix-bootjdk-check.patch gcc10-compilation-fix.patch gcc11.patch make-4.3.patch
+      patches: aarch64.patch JDK-8241296.patch JDK-8245051.patch fix-bootjdk-check.patch gcc10-compilation-fix.patch gcc11.patch make-4.3.patch extend-currency-check-to-100-years.patch
 
   - runs: |
-      CFLAGS='' CXXFLAGS='' LDFLAGS='' \
-        bash ./configure \
+      bash ./configure \
         --openjdk-target=${{host.triplet.gnu}} \
         --prefix=/usr/lib/jvm/java-10-openjdk \
         --sysconfdir=/etc \
@@ -86,11 +87,11 @@ pipeline:
         --with-vendor-url="https://wolfi.dev" \
         --with-vendor-bug-url="https://github.com/wolfi-dev/os/issues" \
         --with-vendor-vm-bug-url="https://github.com/wolfi-dev/os/issues" \
-        --with-extra-cflags="-fno-delete-null-pointer-checks -fno-strict-aliasing" \
+        --with-extra-cflags="-fno-delete-null-pointer-checks -fno-strict-aliasing -Wno-int-conversion" \
         --with-extra-cxxflags="-fno-delete-null-pointer-checks -fno-strict-aliasing" \
         --with-extra-ldflags="$LDFLAGS"
 
-      MAKEFLAGS='' make jdk-image
+      make JOBS=$(nproc) jdk-image
 
   # Check we built something valid
   - runs: |
@@ -224,5 +225,5 @@ subpackages:
         - default-jdk=1.10
 
 update:
-  # OpenJDK 10 is EOL.
   enabled: false
+  exclude-reason: This version is EOL and only built to enable bootstrapping

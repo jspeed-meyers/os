@@ -1,40 +1,44 @@
 package:
   name: nodejs-20
-  version: 20.8.1
+  version: 20.18.0
   epoch: 0
-  description: "JavaScript runtime built on V8 engine"
+  description: "JavaScript runtime built on V8 engine - LTS version"
   dependencies:
-    runtime:
-      - npm
     provides:
-      - nodejs=20
+      - nodejs=${{package.full-version}}
+      - nodejs-lts=${{package.full-version}}
   copyright:
     - license: MIT
+  resources:
+    cpu: 33
+    memory: 64Gi
 
 environment:
   contents:
     packages:
       - brotli-dev
+      - build-base
+      - busybox
       - c-ares-dev
+      - ca-certificates-bundle
       - icu-dev
+      - libuv-dev
       - linux-headers
       - nghttp2-dev
       - openssl-dev
-      - python3
-      - py3-setuptools
       - py3-jinja2
+      - py3-setuptools
+      - python3
       - samurai
-      - zlib-dev
       - wolfi-base
-      - busybox
-      - ca-certificates-bundle
-      - build-base
+      - zlib-dev
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://nodejs.org/dist/v${{package.version}}/node-v${{package.version}}.tar.gz
-      expected-sha256: 18aed385341bc16c7802e9d03189d1d0ad17b87923b2cdf11714d36534783b6a
+      repository: https://github.com/nodejs/node.git
+      tag: v${{package.version}}
+      expected-commit: 7eebd17fa2c1e48e4534f3a69560388fab2f2c07
 
   - name: Configure and build
     runs: |
@@ -54,6 +58,7 @@ pipeline:
         --shared-openssl \
         --shared-cares \
         --shared-nghttp2 \
+        --shared-libuv \
         --ninja \
         --openssl-use-def-ca-store \
         --with-icu-default-data-dir=$(icu-config --icudatadir) \
@@ -85,3 +90,23 @@ update:
     strip-prefix: v
     use-tag: true
     tag-filter: v20.
+
+test:
+  pipeline:
+    - name: Verify Node.js Installation
+      runs: |
+        node --version || exit 1
+        node --help
+    - name: Execute Basic JavaScript
+      runs: |
+        cat <<'EOF' > test.js
+        console.log('Hello, World!');
+        EOF
+        node test.js | grep 'Hello, World!' || exit 1
+    - name: Test International Number Formatting
+      runs: |
+        cat <<'EOF' > testIntl.js
+        console.log(new Intl.NumberFormat('en-EN').format(1234.56));
+        console.log(new Intl.NumberFormat('de-DE').format(1234.56));
+        EOF
+        node testIntl.js | grep '1,234.56' && node testIntl.js | grep '1.234,56' || exit 1

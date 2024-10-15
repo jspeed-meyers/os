@@ -1,7 +1,7 @@
 package:
   name: kind
-  version: 0.20.0
-  epoch: 6
+  version: 0.24.0
+  epoch: 1
   description: Kubernetes IN Docker - local clusters for testing Kubernetes
   copyright:
     - license: Apache-2.0
@@ -15,15 +15,17 @@ environment:
       - go
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/kubernetes-sigs/kind/archive/refs/tags/v${{package.version}}.tar.gz
-      expected-sha256: 6795c3478a298973e010349b87740fa1732e18989856db0deed54b153330365c
+      repository: https://github.com/kubernetes-sigs/kind
+      tag: v${{package.version}}
+      expected-commit: 36d544b02f143304f1c22720c0c3cf86372f8ed6
 
-  - runs: |
-      make build
-      mkdir -p ${{targets.destdir}}/usr/bin/
-      cp ./bin/kind ${{targets.destdir}}/usr/bin/kind
+  - uses: go/build
+    with:
+      packages: ./cmd/kind
+      ldflags: -X sigs.k8s.io/kind/pkg/version.Version=${{package.version}}
+      output: ./kind
 
   - uses: strip
 
@@ -32,3 +34,9 @@ update:
   github:
     identifier: kubernetes-sigs/kind
     strip-prefix: v
+
+test:
+  pipeline:
+    - runs: |
+        kind --version
+        kind --help

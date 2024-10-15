@@ -1,19 +1,19 @@
 package:
   name: temporal
-  version: 0.10.6
-  epoch: 2
+  version: 1.1.0
+  epoch: 0
   description: Command-line interface for running Temporal Server and interacting with Workflows, Activities, Namespaces, and other parts of Temporal
   copyright:
-    - license: MIT License
+    - license: MIT
 
 environment:
   contents:
     packages:
-      - wolfi-baselayout
-      - busybox
       - build-base
-      - go
+      - busybox
       - ca-certificates-bundle
+      - go
+      - wolfi-baselayout
   environment:
     CGO_ENABLED: 0
 
@@ -22,30 +22,35 @@ pipeline:
     with:
       repository: https://github.com/temporalio/cli
       tag: v${{package.version}}
-      expected-commit: b0d19371a4592fb445c92a11b3fe0d44a8da33d7
+      expected-commit: e39881167c74600d8d874c88c60c41370e2d3dd3
 
   - uses: go/build
     with:
       packages: ./cmd/temporal
       output: temporal
-      ldflags: -s -w
 
   - uses: strip
 
 subpackages:
-  - name: temporal-docgen
+  - name: temporal-compat
+    description: "Compat package for temporal"
     pipeline:
-      - uses: go/build
-        with:
-          packages: ./cmd/docgen
-          output: temporal-docgen
-          ldflags: -s -w
-      - uses: strip
+      - runs: |
+          mkdir -p "${{targets.subpkgdir}}"/usr/local/bin
+          ln -s /usr/bin/temporal "${{targets.contextdir}}"/usr/local/bin
 
 update:
   enabled: true
   github:
     identifier: temporalio/cli
     strip-prefix: v
-    use-tag: true
-    tag-filter: v
+
+test:
+  pipeline:
+    - name: Check temporal version
+      runs: |
+        temporal --version
+        temporal --help
+    - name: Test workflow list command
+      runs: |
+        temporal workflow list --address 192.0.2.0:1234 2>&1 | grep "failed reaching server"

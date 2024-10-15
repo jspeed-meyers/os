@@ -1,7 +1,7 @@
 package:
   name: ruby3.2-protocol-http2
-  version: 0.15.1
-  epoch: 4
+  version: 0.19.3
+  epoch: 0
   description: A low level implementation of the HTTP/2 protocol.
   copyright:
     - license: MIT
@@ -14,21 +14,22 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - ruby-3.2
-      - ruby-3.2-dev
       - build-base
       - busybox
+      - ca-certificates-bundle
       - git
+      - ruby-3.2
+      - ruby-3.2-dev
 
 vars:
   gem: protocol-http2
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 73572decaf977081bc723075faa96f9c3276e8ffa5baf02526e0401e7975d5b2
-      uri: https://github.com/socketry/protocol-http2/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: fb31045ec1868f2119806c43051e1e95f83f1718
+      repository: https://github.com/socketry/protocol-http2
+      tag: v${{package.version}}
 
   - uses: patch
     with:

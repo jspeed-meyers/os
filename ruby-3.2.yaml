@@ -1,54 +1,63 @@
 package:
   name: ruby-3.2
-  version: 3.2.2
-  epoch: 4
+  version: 3.2.5
+  epoch: 2
   description: "the Ruby programming language"
   copyright:
     - license: Ruby
     - license: BSD-2-Clause
+  dependencies:
+    provides:
+      - ruby=${{package.full-version}}
 
 environment:
   contents:
     packages:
-      - busybox
-      - ca-certificates-bundle
+      - autoconf
+      - bison
       - build-base
+      - busybox
       - bzip2-dev
+      - ca-certificates-bundle
       - expat-dev
       - gdbm-dev
       - libffi-dev
-      - yaml-dev
       - linux-headers
       - mpdecimal-dev
       - ncurses-dev
+      - oniguruma-dev
       - openssl-dev
       - readline-dev
+      - ruby-3.1
+      - rust
       - sqlite-dev
       - xz-dev
+      - yaml-dev
       - zlib-dev
-      - oniguruma-dev
-      - rust
 
 vars:
   prefix: /usr
 
+var-transforms:
+  - from: ${{package.version}}
+    match: \.
+    replace: _
+    to: underscore-package-version
+
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://cache.ruby-lang.org/pub/ruby/3.2/ruby-${{package.version}}.tar.gz
-      expected-sha256: 96c57558871a6748de5bc9f274e93f4b5aad06cd8f37befa0e8d94e7b8a423bc
+      repository: https://github.com/ruby/ruby
+      tag: v${{vars.underscore-package-version}}
+      expected-commit: 31d0f1a2e7dbfb60731d1f05b868e1d578cda493
 
   - uses: patch
     with:
-      # Fix a CVE in the embedded uri library.
-      # Patch source: https://github.com/ruby/ruby/commit/dd73fe077cae077808e820f4765a12b1f4660521.patch
-      patches: dd73fe077cae077808e820f4765a12b1f4660521.patch
+      patches: update-rexml-3.3.5.patch
 
-  - name: Configure
+  - name: Generate and Configure
     runs: |
-      # Our default LDFLAGS cause an issue with ruby. We need to remove '-z, noexecheap' from LDFLAGS
-      LDFLAGS="$(echo $LDFLAGS | sed 's/,-z,noexecheap//g')"
-
+      ./autogen.sh
       ./configure \
          --host=${{host.triplet.gnu}} \
          --build=${{host.triplet.gnu}} \
@@ -73,7 +82,7 @@ pipeline:
 
   - uses: strip
 
-  - runs: |-
+  - runs: |
       # Ignore the patch version of ruby since ruby will install under the
       # version of the latest standard library. Should produce the string 3.2.*
       RUBYWILD="$(echo ${{package.version}} | cut -d. -f-2).*"
@@ -106,6 +115,37 @@ subpackages:
 
 update:
   enabled: true
-  manual: true # be careful with auto updates as we don't want to include 3.3, we currently don't offer a filter on release monitor versions
-  release-monitor:
-    identifier: 4223
+  version-transform:
+    - match: "_"
+      replace: .
+  github:
+    identifier: ruby/ruby
+    strip-prefix: v
+    use-tag: true
+    tag-filter-prefix: v3_2_
+
+test:
+  pipeline:
+    - runs: |
+        ruby --version | grep ${{package.version}}
+
+        cat <<EOF >> /tmp/hello.rb
+        puts("Hello Wolfi!")
+        EOF
+
+        ruby /tmp/hello.rb
+        erb --version
+        gem --version
+        gem --help
+        irb --version
+        irb --help
+        racc --version
+        rake --version
+        rake --help
+        rdbg --version
+        rdbg --help
+        rdoc --version
+        rdoc --help
+        ri --version
+        ri --help
+        ruby --help

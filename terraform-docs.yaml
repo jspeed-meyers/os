@@ -1,0 +1,33 @@
+package:
+  name: terraform-docs
+  version: 0.19.0
+  epoch: 0
+  description: Generate documentation from Terraform modules in various output formats
+  copyright:
+    - license: MIT
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/terraform-docs/terraform-docs
+      tag: v${{package.version}}
+      expected-commit: af31cc618e8f4763da3323de4040927d849041de
+
+  - uses: go/build
+    with:
+      packages: .
+      output: terraform-docs
+
+test:
+  pipeline:
+    - runs: |
+        ls -lh /usr/bin && terraform-docs --help
+        terraform-docs --version
+        terraform-docs --help
+
+update:
+  enabled: true
+  github:
+    identifier: terraform-docs/terraform-docs
+    strip-prefix: v
+    tag-filter: v

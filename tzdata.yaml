@@ -1,32 +1,26 @@
 package:
   name: tzdata
-  version: 2023c
+  version: 2024b
   epoch: 0
   description: "Timezone data provided by IANA"
   copyright:
-    - license: Public-Domain
+    - license: CC-PDDC
 
 environment:
   contents:
     packages:
-      - wolfi-baselayout
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
       - tzutils
+      - wolfi-baselayout
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://www.iana.org/time-zones/repository/releases/tzcode${{package.version}}.tar.gz
-      expected-sha256: 46d17f2bb19ad73290f03a203006152e0fa0d7b11e5b71467c4a823811b214e7
-      strip-components: 0
-
-  - uses: fetch
-    with:
-      uri: https://www.iana.org/time-zones/repository/releases/tzdata${{package.version}}.tar.gz
-      expected-sha256: 3f510b5d1b4ae9bb38e485aa302a776b317fb3637bdb6404c4adf7b6cadd965c
-      strip-components: 0
+      expected-commit: 6903dde39ed637adaafc352c4b6993739253f058
+      repository: https://github.com/eggert/tz
+      tag: ${{package.version}}
 
   - runs: |
       make cc="${CC:-gcc}" CFLAGS="$CFLAGS -DHAVE_STDINT_H=1" TZDIR="/usr/share/zoneinfo"
@@ -43,5 +37,6 @@ pipeline:
 
 update:
   enabled: true
-  release-monitor:
-    identifier: 5021
+  github:
+    identifier: eggert/tz
+    use-tag: true

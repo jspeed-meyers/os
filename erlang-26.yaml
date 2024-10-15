@@ -1,6 +1,6 @@
 package:
   name: erlang-26
-  version: 26.1.2
+  version: 26.2.5.4
   epoch: 0
   description: General-purpose programming language and runtime environment
   copyright:
@@ -10,26 +10,27 @@ package:
       # mnesia depends on the ca-certificates bundle
       - ca-certificates-bundle
     provides:
-      - erlang=26.999.0
+      - erlang=${{package.full-version}}
 
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - perl-dev
-      - openssl-dev
       - ncurses-dev
+      - openssl-dev
+      - perl-dev
       - zlib-dev
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: f1074cf3a54f1f87e66027d5abebab2fa76a0243453fa58bc5f30d0ce0313921
-      uri: https://github.com/erlang/otp/releases/download/OTP-${{package.version}}/otp_src_${{package.version}}.tar.gz
+      repository: https://github.com/erlang/otp.git
+      tag: OTP-${{package.version}}
+      expected-commit: b6e7e233d0b781728e745dc04f4cb2645c6632ec
 
   - runs: |
       export CPPFLAGS="-D_BSD_SOURCE $CPPFLAGS"
@@ -54,7 +55,7 @@ pipeline:
   - uses: strip
 
 subpackages:
-  - name: "erlang-26-dev"
+  - name: ${{package.name}}-dev
     description: "headers for erlang"
     pipeline:
       - uses: split/dev
@@ -62,7 +63,7 @@ subpackages:
       runtime:
         - erlang
       provides:
-        - erlang-dev=26.999.0
+        - erlang-dev=${{package.full-version}}
 
 update:
   enabled: true
@@ -70,4 +71,29 @@ update:
     identifier: erlang/otp
     strip-prefix: OTP-
     use-tag: true
-    tag-filter: OTP-
+    tag-filter: OTP-26
+
+test:
+  pipeline:
+    - runs: |
+        erl -eval 'erlang:display(erlang:system_info(otp_release)), halt().'  -noshell
+        ct_run --version
+        ct_run --help
+        dialyzer --version
+        dialyzer --help
+        erl --version
+        erl --help
+        erlc -v
+        typer --version
+        typer --help
+    - runs: |
+        cat <<EOF > "hello.erl"
+        -module(hello).
+        -export([hello_wolfi/0]).
+
+        hello_wolfi() -> io:fwrite("hello, wolfi\n").
+        EOF
+
+        erlc hello.erl
+
+        erl -noshell -pa . -eval "hello:hello_wolfi()." -s init stop

@@ -1,16 +1,22 @@
 package:
   name: buildkitd
-  version: 0.12.3
+  version: 0.16.0
   description: "concurrent, cache-efficient, and Dockerfile-agnostic builder toolkit"
-  epoch: 0
+  epoch: 1
   copyright:
     - license: Apache-2.0
+  dependencies:
+    runtime:
+      - buildctl
+      - runc
+    provides:
+      - buildkit=${{package.full-version}}
 
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
       - busybox
+      - ca-certificates-bundle
       - go
       - libseccomp-dev
       - libseccomp-static
@@ -20,7 +26,11 @@ pipeline:
     with:
       repository: https://github.com/moby/buildkit
       tag: v${{package.version}}
-      expected-commit: 438f47256f0decd64cc96084e22d3357da494c27
+      expected-commit: 0865fcc9b78559e856e81dc52b3613701e7be28d
+
+  - uses: go/bump
+    with:
+      deps: github.com/Azure/azure-sdk-for-go/sdk/azidentity@v1.6.0
 
   - runs: |
       PKG=github.com/moby/buildkit
@@ -50,11 +60,30 @@ subpackages:
           mkdir -p ${{targets.subpkgdir}}/usr/bin
           mv ${{targets.destdir}}/usr/bin/buildctl ${{targets.subpkgdir}}/usr/bin/buildctl
       - uses: strip
+    test:
+      pipeline:
+        - runs: |
+            buildctl --version
+            buildctl --help
 
 update:
   enabled: true
   github:
     identifier: moby/buildkit
     strip-prefix: v
-    use-tag: true
     tag-filter: v
+
+test:
+  pipeline:
+    - name: "start daemon"
+      uses: test/daemon-check-output
+      with:
+        start: "/usr/bin/buildkitd"
+        timeout: 60
+        expected_output: |
+          running server
+      runs: |
+        buildctl-daemonless.sh --version
+        buildctl-daemonless.sh --help
+        buildkitd --version
+        buildkitd --help

@@ -1,7 +1,7 @@
 package:
   name: helm
-  version: 3.13.1
-  epoch: 1
+  version: 3.16.2
+  epoch: 0
   description: The Kubernetes Package Manager
   copyright:
     - license: Apache-2.0
@@ -12,30 +12,36 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - busybox
-      - go
       - build-base
+      - busybox
+      - ca-certificates-bundle
       - git
+      - go
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/helm/helm
       tag: v${{package.version}}
-      expected-commit: 3547a4b5bf5edb5478ce352e18858d8a552a4110
-      destination: helm
+      expected-commit: 13654a52f7c70a143b1dd51416d633e1071faffb
+
+  - uses: go/bump
+    with:
+      deps: github.com/docker/docker@v26.1.5
 
   - runs: |
-      cd helm
-      # Mitigate CVE-2023-39325 and CVE-2023-3978
-      go get golang.org/x/net@v0.17.0
-      go mod tidy
-
       make build
-      install -Dm755 ./bin/helm "${{targets.destdir}}/usr/bin/helm"
+      install -Dm755 ./bin/helm "${{targets.contextdir}}/usr/bin/helm"
 
   - uses: strip
+
+test:
+  pipeline:
+    - runs: |
+        helm version || exit 1
+        helm --help
+    - runs: |
+        helm create test
 
 update:
   enabled: true

@@ -1,7 +1,7 @@
 package:
   name: libkcapi
-  version: 1.4.0
-  epoch: 0
+  version: 1.5.0
+  epoch: 1
   description: Linux Kernel Crypto API User Space Interface Library
   copyright:
     - license: BSD-3-Clause OR GPL-2.0-or-later
@@ -9,18 +9,23 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
       - libtool
+      - patch
 
 pipeline:
   - uses: fetch
     with:
-      expected-sha256: 644b47593b3f27f08add7a8808ccdbe569a2f331d70fb8b52551e57379b917fa
-      uri: https://www.chronox.de/libkcapi/libkcapi-${{package.version}}.tar.xz
+      expected-sha256: f1d827738bda03065afd03315479b058f43493ab6e896821b947f391aa566ba0
+      uri: https://github.com/smuellerDD/libkcapi/archive/refs/tags/v${{package.version}}.tar.gz
+
+  - uses: patch
+    with:
+      patches: makefile.patch
 
   - runs: autoreconf -fvi
 
@@ -42,16 +47,7 @@ pipeline:
   - uses: autoconf/make-install
 
   - runs: |
-      rm ${{targets.destdir}}/usr/bin/fips*
       rm -r ${{targets.destdir}}/usr/libexec/
-
-      cd ${{targets.destdir}}/usr/bin
-
-      # rename generic utils to not conflict with generic names. the options
-      # aren't guaranteed to be compatible
-      for tool in sha* md5* sm3*; do
-        mv $tool kcapi-$tool
-      done
 
   - uses: strip
 
@@ -70,6 +66,19 @@ subpackages:
           mkdir -p "${{targets.subpkgdir}}"/usr
           mv ${{targets.destdir}}/usr/bin ${{targets.subpkgdir}}/usr/
     description: libkcapi (commandline utilities)
+    test:
+      pipeline:
+        - runs: |
+            kcapi -h
+            kcapi-convenience --version
+            kcapi-convenience --help
+            kcapi-dgst --version
+            kcapi-enc --version
+            kcapi-enc-test-large --version
+            kcapi-enc-test-large --help
+            kcapi-hasher --version
+            kcapi-hasher --help
+            kcapi-rng --version
 
   - name: libkcapi-doc
     pipeline:

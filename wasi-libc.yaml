@@ -1,7 +1,7 @@
 package:
   name: wasi-libc
-  version: 20.0.0
-  epoch: 0
+  version: 21.0.0
+  epoch: 1
   description: "WASI libc implementation for WebAssembly"
   copyright:
     - license: Apache-2.0 WITH LLVM-exception AND Apache-2.0 AND MIT AND CC0-1.0 AND BSD-2-Clause
@@ -9,20 +9,20 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-baselayout
       - busybox
-      - make
       - ca-certificates-bundle
-      - clang-15
-      - clang-15-default
-      - llvm15
-      - llvm15-tools
+      - clang-17
+      - clang-17-dev
+      - llvm17
+      - make
+      - wolfi-baselayout
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/WebAssembly/wasi-libc/archive/refs/tags/wasi-sdk-20.tar.gz
-      expected-sha256: 0a1c09c8c1da62a1ba214254ff4c9db6b60979c00f648a5eae33831d6ee2840e
+      repository: https://github.com/WebAssembly/wasi-libc
+      tag: wasi-sdk-21
+      expected-commit: c5264e2bbe532994d06b039005f2af91bedcc1a6
 
   - name: Build
     runs: |

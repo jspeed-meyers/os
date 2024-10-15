@@ -1,6 +1,6 @@
 package:
   name: vim
-  version: 9.0.2056
+  version: 9.1.0785
   epoch: 0
   description: "Improved vi-style text editor"
   copyright:
@@ -9,19 +9,20 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-base
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - ncurses-dev
       - lua5.3-dev
+      - ncurses-dev
       - python3-dev
+      - wolfi-base
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/vim/vim/archive/v${{package.version}}.tar.gz
-      expected-sha256: 35d6df8adeb0e2124db041291b74f453aff54809e5fab6ad41f52d946f3f6ee1
+      repository: https://github.com/vim/vim
+      tag: v${{package.version}}
+      expected-commit: 27fbf6e5e8bee5c6b61819a5e82a0b50b265f0b0
 
   - runs: |
       # vim seems to manually set FORTIFY_SOURCE=1, and setting both breaks the build
@@ -47,9 +48,30 @@ pipeline:
 
   - uses: strip
 
+test:
+  pipeline:
+    - name: Verify vim installation
+      runs: |
+        vim --version || exit 1
+        ex --version
+        ex --help
+        rview --version
+        rview --help
+        rvim --version
+        rvim --help
+        view --version
+        view --help
+        vim --help
+        vimdiff --version
+        vimdiff --help
+        xxd --version
+
 update:
   enabled: true
   github:
     identifier: vim/vim
     strip-prefix: v
     use-tag: true
+  schedule:
+    period: daily
+    reason: upstream project creates a tag for each commit to main

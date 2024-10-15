@@ -1,0 +1,355 @@
+#nolint:git-checkout-must-use-github-updates
+# Note: To produce a debug build of Chromium, pass these options to gn:
+#  is_debug=true
+#  is_official_build=false
+#  symbol_level=2
+# And remove the use of the strip pipeline below
+package:
+  name: chromium
+  version: 129.0.6668.100
+  epoch: 1
+  description: "Open souce version of Google's chrome web browser"
+  copyright:
+    - license: BSD-3-Clause
+  resources:
+    cpu: 65
+    memory: 128Gi
+  target-architecture:
+    - x86_64
+  dependencies:
+    runtime:
+      - font-opensans
+      - fontconfig
+      - gtk-3
+      - icu-data-full
+      - libnss
+      - mesa
+      - nss
+      - systemd
+      - xdg-utils
+
+environment:
+  contents:
+    packages:
+      - alsa-lib-dev
+      - at-spi2-core-dev
+      - bash
+      - bison
+      - brotli-dev
+      - build-base
+      - busybox
+      - bzip2-dev
+      - ca-certificates-bundle
+      - cairo-dev
+      - crc32c-dev
+      - cups-dev
+      - curl
+      - curl-dev
+      - dav1d-dev
+      - dbus-dev
+      - dbus-glib-dev
+      - double-conversion-dev
+      - elfutils
+      - elfutils-dev
+      - expat-dev
+      - ffmpeg-dev
+      - findutils
+      - flac-dev
+      - flex
+      - fontconfig-dev
+      - freetype-dev
+      - fribidi-dev
+      - git
+      - glib-dev
+      - gn
+      - gnutar
+      - gperf
+      - gtk-3-dev
+      - gzip
+      - harfbuzz-dev
+      - harfbuzz-static
+      - hwdata-dev
+      - hwdata-usb
+      - icu-dev
+      - krb5-dev
+      - lcms2-dev
+      - libbsd-dev
+      - libcap-dev
+      - libdrm-dev
+      - libevent-dev
+      - libffi-dev
+      - libgcrypt-dev
+      - libjpeg-turbo-dev
+      - libnspr-dev
+      - libnss-dev
+      - libogg-dev
+      - libpsl-dev
+      - libpsl-static
+      - libsecret-dev
+      - libusb-dev
+      - libva-dev
+      - libwebp-dev
+      - libxcomposite-dev
+      - libxcursor-dev
+      - libxdamage
+      - libxdamage-dev
+      - libxft-dev
+      - libxi-dev
+      - libxinerama-dev
+      - libxkbcommon
+      - libxkbcommon-dev
+      - libxml2-dev
+      - libxrandr-dev
+      - libxshmfence-dev
+      - libxslt-dev
+      - libxtst
+      - libxtst-dev
+      - linux-headers
+      - mesa
+      - mesa-dev
+      - mesa-gbm
+      - minizip
+      - nghttp2-dev
+      - openh264-dev
+      - opus-dev
+      - pango
+      - pango-dev
+      - pciutils
+      - pciutils-dev
+      - perl
+      - pulseaudio-dev
+      - py3-httplib2
+      - py3-setuptools
+      - python3
+      - qt5-qtbase-dev
+      - qt6-qtbase-dev
+      - rust
+      - samurai
+      - speex-dev
+      - sqlite-dev
+      - systemd-dev
+      - wget
+      - xcb-proto
+      - xz
+      - zlib-dev
+      - zstd-dev
+  environment:
+    # Disable compiler warnings encountered when using system provided libraries
+    CFLAGS: "$(echo ${CFLAGS}) -Wno-unknown-warning-option -Wno-builtin-macro-redefined -Wno-deprecated-declarations -Wno-shift-count-overflow -Wno-ignored-attributes"
+    CXXFLAGS: "$(echo ${CXXFLAGS}) -Wno-unknown-warning-option -Wno-builtin-macro-redefined -Wno-deprecated-declarations -Wno-invalid-constexpr"
+    CPPFLAGS: "$(echo ${CPPFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS/}) -D__DATE__=  -D__TIME__=  -D__TIMESTAMP__="
+
+pipeline:
+  - uses: git-checkout
+    with:
+      # === INFO === Initial git clone: takes ~3 minutes, needs 6GB disk
+      repository: https://chromium.googlesource.com/chromium/src.git
+      tag: ${{package.version}}
+      depth: 1
+      expected-commit: cf58cba358d31ce285c1970a79a9411d0fb381a5
+      destination: /home/src
+
+  - runs: |
+      cd /home
+      time git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
+      export PATH="$PATH:/home/depot_tools"
+      # .gclient must be in one directory above chromium's src
+      cat <<EOF >/home/.gclient
+      # Setup a .gclient config (handled by 'fetch' in upstream instructions)
+      solutions = [
+        { "name"        : "src",
+          "url"         : "https://chromium.googlesource.com/chromium/src.git",
+          "managed": False,
+          "custom_deps": {},
+          "custom_vars": {},
+        },
+      ]
+      EOF
+      cat /home/.gclient
+      # === INFO === Sync dependencies: takes about 11 minutes, requires 30 GB of disk
+      # go back into our chromium src directory
+      cd /home/src
+      time gclient sync --no-history
+      # === INFO === Use system dependencies
+      # Use USB IDs already provided by hwdata-usb
+      sed 's|//third_party/usb_ids/usb.ids|/usr/share/hwdata/usb.ids|g' \
+        -i services/device/public/cpp/usb/BUILD.gn
+
+      # System libraries
+      # Chromium doesn't like our ffmpeg so remove for now
+      system_libs="
+        brotli
+        crc32c
+        dav1d
+        double-conversion
+        flac
+        fontconfig
+        freetype
+        harfbuzz-ng
+        icu
+        libdrm
+        libevent
+        libjpeg
+        libsecret
+        libusb
+        libwebp
+        libxml
+        libxslt
+        openh264
+        opus
+        zlib
+        zstd
+      "
+
+      # Remove system provided library buildscripts
+      for _lib in $system_libs libjpeg_turbo unrar; do
+        echo "Removing buildscripts for system provided $_lib"
+        _lib="${_lib/swiftshader-/swiftshader/third_party/}"
+          find . -type f -path "*third_party/$_lib/*" \
+          \! -path "*third_party/$_lib/chromium/*" \
+          \! -path "*third_party/$_lib/google/*" \
+          \! -path './base/third_party/icu/*' \
+          \! -path './third_party/libxml/*' \
+          \! -path './third_party/pdfium/third_party/freetype/include/pstables.h' \
+          \! -path './third_party/harfbuzz-ng/utils/hb_scoped.h' \
+          \! -path './third_party/crashpad/crashpad/third_party/zlib/zlib_crashpad.h' \
+          \! -regex '.*\.\(gn\|gni\|isolate\|py\)' \
+          -delete
+      done
+
+      # Update gn configuration to use system libraries
+      python3 build/linux/unbundle/replace_gn_files.py --system-libraries $system_libs
+      python3 third_party/libaddressinput/chromium/tools/update-strings.py
+
+      # Allow system dependencies in "official builds"
+      sed -i 's/OFFICIAL_BUILD/GOOGLE_CHROME_BUILD/' \
+        tools/generate_shim_headers/generate_shim_headers.py
+
+      # === INFO === Make node executable: works around permission denial
+      cd /home/src
+      chmod +x third_party/node/linux/node-linux-x64/bin/node
+      # === INFO === Generate config: takes about 30 minutes /
+      cd /home/src
+      time gn gen /home/src/out/Default --args="
+        clang_use_chrome_plugins=false
+        chrome_pgo_phase=0
+        enable_nacl=false
+        enable_nocompile_tests_new=false
+        enable_widevine=true
+        ffmpeg_branding=\"Chrome\"
+        icu_use_data_file=false
+        is_debug=false
+        is_official_build=true
+        link_pulseaudio=true
+        moc_qt6_path=\"/usr/lib/qt6/libexec\"
+        proprietary_codecs=true
+        safe_browsing_use_unrar=false
+        symbol_level=0
+        treat_warnings_as_errors=false
+        use_lld=true
+        use_pulseaudio=true
+        use_qt6=true
+        use_sysroot=false
+        use_system_freetype=true
+        use_system_harfbuzz=true
+        use_system_lcms2=true
+        use_system_libdrm=true
+        use_system_libffi=true
+        use_system_libjpeg=true
+        use_system_zlib=true
+      "
+      # === INFO === Compile: takes about 3 hours, 60 GB of disk (on a 32xXeon, 128GBxRAM, 2TBxNVME system)
+      cd /home/src
+      time autoninja -C /home/src/out/Default chrome chromedriver.unstripped chrome_crashpad_handler chrome_sandbox
+      # === INFO === Install the binaries and libraries
+      cd /home/src/out/Default
+      mkdir -p ${{targets.destdir}}/usr/bin ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv *.so* ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv chrome ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv chrome_crashpad_handler ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv chrome_sandbox ${{targets.destdir}}/usr/lib/${{package.name}}
+      # resources
+      mv snapshot_blob.bin ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv v8_context_snapshot.bin ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv xdg-mime ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv xdg-settings ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv vk_swiftshader_icd.json ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv *.pak ${{targets.destdir}}/usr/lib/${{package.name}}
+      mv locales ${{targets.destdir}}/usr/lib/${{package.name}}
+      # wrapper
+      cd /home/build
+      mv chromium-launcher.sh ${{targets.destdir}}/usr/bin/chromium-browser
+      # links
+      ln -sf /usr/lib/${{package.name}}/chrome ${{targets.destdir}}/usr/bin/chromium
+      ln -sf /usr/lib/${{package.name}}/chromedriver ${{targets.destdir}}/usr/bin/chromedriver
+      mkdir -p ${{targets.destdir}}/etc/chromium
+
+  - uses: strip
+    with:
+      opts: -s
+
+  # Do not strip ChromeDriver
+  - working-directory: /home/src/out/Default
+    runs: |
+      mv chromedriver.unstripped ${{targets.destdir}}/usr/lib/${{package.name}}/chromedriver
+
+subpackages:
+  - name: ${{package.name}}-lang
+    pipeline:
+      - runs: |
+          mkdir -p ${{targets.subpkgdir}}/usr/lib/${{package.name}}/locales
+          mv ${{targets.destdir}}/usr/lib/${{package.name}}/locales/* ${{targets.subpkgdir}}/usr/lib/${{package.name}}/locales/
+
+          # Ensure we provide one locale in the base package
+          mv ${{targets.subpkgdir}}/usr/lib/${{package.name}}/locales/en-US.pak ${{targets.destdir}}/usr/lib/${{package.name}}/locales/en-US.pak
+
+  # https://github.com/SeleniumHQ/docker-selenium/blob/trunk/NodeChrome/Dockerfile
+  - name: chromium-docker-selenium-compat
+    pipeline:
+      - runs: |
+          mkdir -p ${{targets.subpkgdir}}/opt/selenium
+
+          ln -sf /usr/lib/chromium/chromedriver ${{targets.subpkgdir}}/opt/selenium/chromedriver-${{package.version}}
+
+          echo "chrome" > ${{targets.subpkgdir}}/opt/selenium/browser_name
+          echo ${{package.version}} > ${{targets.subpkgdir}}/opt/selenium/browser_version
+          echo "\"goog:chromeOptions\": {\"binary\": \"/usr/bin/chromium-browser\"}" > ${{targets.subpkgdir}}/opt/selenium/browser_binary_location
+
+update:
+  enabled: true
+  release-monitor:
+    identifier: 13344
+
+test:
+  environment:
+    contents:
+      packages:
+        - grep
+        - posix-libc-utils
+        - libnss
+        #- py3-pip
+        #- python3
+  pipeline:
+    - runs: |
+        # Make sure Chrome and ChromeDriver are at the correct path
+        test -x /usr/lib/chromium/chrome
+        test -x /usr/lib/chromium/chromedriver
+        test -f /usr/lib/chromium/locales/en-US.pak
+
+        # Ensure all libraries are linked
+        ldd /usr/lib/chromium/chrome
+
+        # Check status with new headless mode
+        chromium --no-sandbox --headless --disable-gpu --dump-dom https://www.chromestatus.com
+
+        # Test wrapper
+        CHROMIUM_USER_FLAGS="--no-sandbox --headless --disable-gpu --dump-dom" chromium-browser https://www.chromestatus.com
+
+        # Test ChromeDriver functionality
+        # Disable ChromeDriver test until py3-selenium has been packaged
+        #pip3 install selenium
+        #python3 ./test-chromedriver.py
+        chromedriver --version
+        chromedriver --help
+        chromium --version
+        chromium-browser --version

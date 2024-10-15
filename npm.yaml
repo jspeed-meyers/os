@@ -1,6 +1,6 @@
 package:
   name: npm
-  version: 10.2.1
+  version: 10.9.0
   epoch: 0
   description: "the npm package manager for javascript, mainline"
   copyright:
@@ -9,19 +9,16 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-base
       - build-base
       - rsync
+      - wolfi-base
 
 pipeline:
   - uses: fetch
     with:
       uri: https://registry.npmjs.org/npm/-/npm-${{package.version}}.tgz
-      expected-sha512: 61587c503c39951d9b3d2eabad2d1a3c6f595ca0d679a78eff332864ca7b8374e1ae1a3d72a1274ab72f8383e27364210c0429b40ca7c792a0acf802491b1caa
-
-  - uses: patch
-    with:
-      patches: dont-check-for-last-version.patch
+      expected-sha512: 65a9c38a8172948f617a53619762cd77e12b9950fe1f9239debcb8d62c652f2081824b986fee7c0af6c0a7df615becebe4bf56e17ec27214a87aa29d9e038b4b
+      delete: true
 
   - runs: |
       # Wrapper scripts written in Bash and CMD.
@@ -43,14 +40,15 @@ pipeline:
              -name 'AUTHORS*' -o \
              -name 'LICENSE*' -o \
              -name 'license' -o \
+             -name 'node-gyp' -o \
              -name 'Makefile' -o \
              -name 'README*' -o \
              -name 'readme.markdown' \) -delete
 
       rm -rf ./*/.git* ./*/doc ./*/docs ./*/examples ./*/scripts ./*/test
-      rm -rf ./node-gyp/gyp/.git*
+      rm -rf node_modules/node-gyp
 
-      find . -type f -executable ! -name 'node-gyp*' -exec chmod -x {} \;
+      find . -type f -executable  -exec chmod -x {} \;
 
   - working-directory: /home/build/man
     runs: |
@@ -65,7 +63,6 @@ pipeline:
 
   - runs: |
       destdir="${{targets.destdir}}"/usr/lib/node_modules/npm
-
       install -dDm755 "$destdir"
       rsync -av --exclude melange-out /home/build/ "$destdir"
       chmod 755 "$destdir"
@@ -74,7 +71,6 @@ pipeline:
     runs: |
       ln -s ../lib/node_modules/npm/bin/npm-cli.js npm
       ln -s ../lib/node_modules/npm/bin/npx-cli.js npx
-      ln -s ../lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js node-gyp
 
   - working-directory: ${{targets.destdir}}/usr/share
     runs: |
@@ -89,8 +85,26 @@ subpackages:
 
 update:
   enabled: true
+  ignore-regex-patterns:
+    - -v # ignore versions that start contain a -v, e.g. arborist-v7.2.1, libnpmfund-v4.2.0
   github:
     identifier: npm/cli
     strip-prefix: v
     tag-filter: v
     use-tag: true
+
+test:
+  environment:
+    contents:
+      packages:
+        - nodejs
+    environment:
+      HOME: /home/build
+  pipeline:
+    - runs: |
+        npm --version
+        npm install -g cowsay
+        cowsay Yay! It works!
+        npm help
+        npx --version
+        npx --help

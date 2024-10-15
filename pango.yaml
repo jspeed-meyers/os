@@ -4,7 +4,7 @@
 #nolint:git-checkout-must-use-github-updates
 package:
   name: pango
-  version: 1.51.1
+  version: 1.54.0
   epoch: 0
   description: library for layout and rendering of text
   copyright:
@@ -13,30 +13,31 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - bash
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
       - cairo-dev
       - expat-dev
       - fontconfig-dev
       - fribidi-dev
       - glib-dev
+      - glib-gir
       - gobject-introspection-dev
       - harfbuzz-dev
       - help2man
       - libxft-dev
       - meson
       - posix-libc-utils
-      - bash
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://gitlab.gnome.org/GNOME/pango.git
       tag: ${{package.version}}
-      expected-commit: dfdbb8b55effc0feb72a1981944acaf20ee71354
+      expected-commit: 5b1551e933d069d15169eb7c8bd6b2e95cbfe230
 
   - uses: meson/configure
     with:
@@ -72,6 +73,15 @@ subpackages:
           mkdir -p "${{targets.subpkgdir}}"/usr
           mv ${{targets.destdir}}/usr/bin ${{targets.subpkgdir}}/usr/
     description: pango (tools)
+    test:
+      pipeline:
+        - runs: |
+            pango-list --version
+            pango-list --help
+            pango-segmentation --version
+            pango-segmentation --help
+            pango-view --version
+            pango-view --help
 
 update:
   enabled: true

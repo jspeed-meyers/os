@@ -1,0 +1,45 @@
+# Generated from https://pypi.org/project/boto3/
+package:
+  name: py3-boto3
+  version: 1.35.40
+  epoch: 0
+  description: The AWS SDK for Python
+  copyright:
+    - license: Apache-2.0
+  dependencies:
+    runtime:
+      - py3-botocore
+      - py3-jmespath
+      - py3-s3transfer
+      - python3
+
+environment:
+  contents:
+    packages:
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - python3-dev
+      - wolfi-base
+
+pipeline:
+  - uses: fetch
+    with:
+      expected-sha256: 33c6a7aeab316f7e0b3ad8552afe95a4a10bfd58519d00741c4d4f3047da8382
+      uri: https://files.pythonhosted.org/packages/source/b/boto3/boto3-${{package.version}}.tar.gz
+
+  - name: Python Build
+    uses: python/build-wheel
+
+  - uses: strip
+
+update:
+  enabled: true
+  release-monitor:
+    identifier: 29737
+
+test:
+  pipeline:
+    - uses: python/import
+      with:
+        import: boto3

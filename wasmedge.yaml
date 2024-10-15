@@ -1,6 +1,6 @@
 package:
   name: wasmedge
-  version: 0.13.4
+  version: 0.14.1
   epoch: 0
   description: WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime for cloud native, edge, and decentralized applications.
   copyright:
@@ -12,32 +12,33 @@ package:
 environment:
   contents:
     packages:
-      - busybox
-      - ca-certificates-bundle
-      - build-base
-      - cmake
-      - samurai
-      - llvm16
-      - llvm16-dev
-      - libLLVM-16
-      - llvm-lld-16
-      - llvm-lld-16-static
-      - llvm-lld-16-dev
-      - clang-16
-      - clang-16-dev
-      - zlib-dev
-      - python3
-      - libxml2-dev
       - boost
       - boost-dev
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - clang-16
+      - clang-16-dev
+      - cmake
+      - libLLVM-16
+      - libxml2-dev
+      - llvm-lld-16
+      - llvm-lld-16-dev
+      - llvm-lld-16-static
+      - llvm16
+      - llvm16-dev
+      - openssf-compiler-options
+      - python3
       - rapidjson-dev
+      - samurai
+      - zlib-dev
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/WasmEdge/WasmEdge
       tag: ${{package.version}}
-      expected-commit: 96ecb670f035ba193e0660118c24922092a6b00b
+      expected-commit: 2900031c24f3c49ad3596244dba4c5723048c8ad
 
   - uses: patch
     with:
@@ -61,3 +62,26 @@ update:
   enabled: true
   github:
     identifier: WasmEdge/WasmEdge
+
+test:
+  environment:
+    contents:
+      packages:
+        - busybox
+        - libLLVM-16
+  pipeline:
+    - name: Verify WasmEdge installation
+      runs: |
+        wasmedge --version || exit 1
+    - name: WasmEdge Basic WebAssembly Execution
+      runs: |
+        wasm=$(cat <<'EOF'
+        0061736d0100000001070160027f7f017f030201000707010373756d00000a09010700200020016a0b
+        EOF
+        )
+        echo $wasm | xxd -r -p > sum.wasm
+        result=$(wasmedge --reactor sum.wasm sum 1 2)
+        if [ "$result" != "3" ]; then
+          echo "Test failed: Expected result 3, got $result"
+          exit 1
+        fi

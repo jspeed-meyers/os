@@ -1,7 +1,7 @@
 package:
   name: py3-tensorflow-metadata
-  version: 1.14.0
-  epoch: 1
+  version: 1.16.1
+  epoch: 0
   description: Utilities for passing TensorFlow-related metadata between tools
   copyright:
     - license: Apache-2.0
@@ -15,22 +15,22 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - wolfi-base
-      - busybox
-      - build-base
-      - python-3
-      - py3-setuptools
-      - bazel-6
-      - openjdk-17
       - bash
+      - bazel-6
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - openjdk-17
+      - py3-setuptools
+      - python-3
+      - wolfi-base
   environment:
     JAVA_HOME: /usr/lib/jvm/java-17-openjdk
 
 pipeline:
   - uses: git-checkout
     with:
-      expected-commit: 7073f7452d6cecbb5279781451f7c3144c924367
+      expected-commit: 9d0fc933a0120ad1c99fc6ec6491a4503964821a
       repository: https://github.com/tensorflow/metadata
       tag: v${{package.version}}
 
@@ -48,3 +48,23 @@ update:
   github:
     identifier: tensorflow/metadata
     strip-prefix: v
+
+test:
+  pipeline:
+    - name: Import Test
+      runs: |
+        echo "Testing tensorflow-metadata imports..."
+        python3 <<EOF-
+        import tensorflow_metadata
+        print('tensorflow-metadata imported successfully')
+        EOF-
+    - name: Basic Functionality Test
+      runs: |
+        echo "Testing tensorflow-metadata basic functionality..."
+        python3 <<EOF-
+        from tensorflow_metadata.proto.v0 import schema_pb2
+        schema = schema_pb2.Schema()
+        schema.feature.add(name='example_feature')
+        assert schema.feature[0].name == 'example_feature', 'Basic feature addition failed'
+        print('tensorflow-metadata basic functionality success')
+        EOF-

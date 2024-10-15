@@ -1,6 +1,6 @@
 package:
   name: librdkafka
-  version: 2.2.0
+  version: 2.3.0
   epoch: 3
   description: "The Apache Kafka C/C++ library"
   copyright:
@@ -9,24 +9,26 @@ package:
 environment:
   contents:
     packages:
-      # - bsd-compat-headers
-      - linux-headers
       - build-base
       - busybox
-      - cmake
       - ca-certificates-bundle
-      - openssl-dev
-      - samurai
-      - rapidjson
+      - cmake
+      # - bsd-compat-headers
+      - linux-headers
       - lz4-dev
-      - zstd-dev
+      - openssf-compiler-options
+      - openssl-dev
+      - rapidjson
+      - samurai
       - zlib-dev
+      - zstd-dev
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha512: 1a85b5864efdeece1327e461b62a378f24b73eb7174168f630aeff01d4a5074d6b2f15744bc267665fcfc6384e804df00c20b7271ecd85a98dca84746b86b4d9
-      uri: https://github.com/confluentinc/librdkafka/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: 95a542c87c61d2c45b445f91c73dd5442eb04f3c
+      repository: https://github.com/confluentinc/librdkafka
+      tag: v${{package.version}}
 
   - runs: |
       CFLAGS="$CFLAGS -flto=auto" \
@@ -51,7 +53,7 @@ subpackages:
     description: librdkafka dev
 
 update:
-  enabled: true
+  enabled: false
   ignore-regex-patterns:
     - full-integration-tests
   github:

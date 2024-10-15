@@ -1,6 +1,6 @@
 package:
   name: ntpd-rs
-  version: 1.0.0
+  version: 1.3.0
   epoch: 0
   description: "An NTP implementation in Rust."
   copyright:
@@ -9,24 +9,26 @@ package:
 environment:
   contents:
     packages:
-      - rust
-      - wolfi-base
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
+      - cargo-auditable
+      - rust
+      - wolfi-base
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/pendulum-project/ntpd-rs
       tag: v${{package.version}}
-      expected-commit: 607460a40bf93ce857667d51f1589b838bd46642
+      expected-commit: e8869f4378971ca470131e54fea6e72655a774c3
 
   - name: Configure and build
     runs: |
-      cargo build --release -vv
-      mkdir -p ${{targets.destdir}}/usr/bin/
-      mv target/release/ntp-daemon ${{targets.destdir}}/usr/bin/
+      cargo auditable build --release -vv
+      install -Dm755 target/release/ntp-daemon ${{targets.destdir}}/usr/bin/ntp-daemon
+      install -Dm755 target/release/ntp-ctl ${{targets.destdir}}/usr/bin/ntp-ctl
+      install -Dm755 target/release/ntp-metrics-exporter ${{targets.destdir}}/usr/bin/ntp-metrics-exporter
 
   - uses: strip
 
@@ -35,3 +37,17 @@ update:
   github:
     identifier: pendulum-project/ntpd-rs
     strip-prefix: v
+
+test:
+  pipeline:
+    - name: Check ntpd-rs version
+      runs: |
+        ntp-daemon --version
+        ntp-ctl --version
+        ntp-ctl --help
+        ntp-daemon --help
+        ntp-metrics-exporter --version
+        ntp-metrics-exporter --help
+    - name: Validate ntpd-rs config
+      runs: |
+        ntp-ctl validate

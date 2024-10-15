@@ -2,7 +2,7 @@
 package:
   name: sbc
   version: "2.0"
-  epoch: 0
+  epoch: 1
   description: Bluetooth Subband Codec (SBC) library
   copyright:
     - license: GPL-2.0-or-later AND LGPL-2.1-or-later
@@ -10,17 +10,18 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - libsndfile-dev
-      - libsndfile
-      - linux-headers
       - flac-dev
       - libogg-dev
+      - libsndfile
+      - libsndfile-dev
       - libvorbis-dev
+      - linux-headers
+      - opus-dev
 
 pipeline:
   - uses: fetch
@@ -51,6 +52,13 @@ subpackages:
       - runs: |
           mkdir -p "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/bin/* "${{targets.subpkgdir}}"/usr/bin/
+    test:
+      pipeline:
+        - runs: |
+            sbcdec version
+            sbcdec --help
+            sbcenc version
+            sbcenc --help
 
 update:
   release-monitor:

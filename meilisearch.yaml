@@ -1,6 +1,6 @@
 package:
   name: meilisearch
-  version: 1.4.2
+  version: 1.10.3
   epoch: 0
   description: "A lightning-fast search engine that fits effortlessly into your apps, websites, and workflow."
   copyright:
@@ -9,20 +9,23 @@ package:
 environment:
   contents:
     packages:
-      - rust
-      - wolfi-base
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
+      - rust
+      - wolfi-base
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/meilisearch/meilisearch/archive/refs/tags/v${{package.version}}.tar.gz
-      expected-sha256: 1bb9b5da7ee6e481861431900d7775ffcd148f78f16810b1c657a6351751c4ba
+      repository: https://github.com/meilisearch/meilisearch.git
+      expected-commit: cf5aa630d2fd262ccbac86ad007da451fa4d72c6
+      tag: v${{package.version}}
+      recurse-submodules: true
 
   - name: Configure and build
     runs: |
+      cargo update --precise 0.3.36 --package time
       cargo build --release --locked -vv
       mkdir -p ${{targets.destdir}}/usr/bin/
       mv target/release/meilisearch ${{targets.destdir}}/usr/bin/
@@ -34,3 +37,9 @@ update:
   github:
     identifier: meilisearch/meilisearch
     strip-prefix: v
+
+test:
+  pipeline:
+    - runs: |
+        meilisearch --version
+        meilisearch --help

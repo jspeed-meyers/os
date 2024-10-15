@@ -1,7 +1,7 @@
 package:
   name: libretls
-  version: 3.5.2
-  epoch: 2
+  version: 3.8.1
+  epoch: 1
   description: "port of libtls from libressl to openssl"
   copyright:
     - license: 'ISC AND ( BSD-3-Clause OR MIT )'
@@ -12,17 +12,26 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-baselayout
+      - autoconf
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
+      - gettext-dev
+      - gtk-doc
+      - intltool
+      - libtool
       - openssl-dev
+      - wolfi-baselayout
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://causal.agency/libretls/libretls-${{package.version}}.tar.gz
-      expected-sha256: 59ce9961cb1b1a2859cacb9863eeccc3bbeadf014840a1c61a0ac12ad31bcc9e
+      repository: https://git.causal.agency/libretls
+      tag: ${{package.version}}
+      expected-commit: 198349012002f8d30013eb23c7d6df6a3c9cc65a
+
+  - runs: |
+      autoreconf -vfi
 
   - uses: autoconf/configure
 

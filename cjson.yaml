@@ -1,6 +1,6 @@
 package:
   name: cjson
-  version: 1.7.16
+  version: 1.7.18
   epoch: 1
   description: Lighweight JSON parser in C
   copyright:
@@ -9,12 +9,13 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
       - cmake
+      - openssf-compiler-options
       - samurai
 
 pipeline:
@@ -22,7 +23,7 @@ pipeline:
     with:
       repository: https://github.com/DaveGamble/cJSON
       tag: v${{package.version}}
-      expected-commit: cb8693b058ba302f4829ec6d03f609ac6f848546
+      expected-commit: acc76239bee01d8e9c858ae2cab296704e52d916
 
   - uses: cmake/configure
 

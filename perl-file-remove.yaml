@@ -2,7 +2,7 @@
 package:
   name: perl-file-remove
   version: "1.61"
-  epoch: 1
+  epoch: 2
   description: Remove files and directories
   copyright:
     - license: GPL-1.0-or-later OR Artistic-1.0-Perl
@@ -14,13 +14,13 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - perl-module-build
       - perl
+      - perl-module-build
 
 pipeline:
   - uses: fetch

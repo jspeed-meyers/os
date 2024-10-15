@@ -1,6 +1,6 @@
 package:
   name: libxi
-  version: 1.8.1
+  version: 1.8.2
   epoch: 0
   description: X11 Input extension library
   copyright:
@@ -9,24 +9,29 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - bash
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - xorgproto
+      - libtool
       - libx11-dev
       - libxext-dev
       - libxfixes-dev
+      - pkgconf-dev
       - util-macros
       - xmlto
-      - bash
+      - xorgproto
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 89bfc0e814f288f784202e6e5f9b362b788ccecdeb078670145eacd8749656a7
-      uri: https://www.x.org/releases/individual/lib/libXi-${{package.version}}.tar.xz
+      repository: https://gitlab.freedesktop.org/xorg/lib/libxi.git
+      tag: libXi-${{package.version}}
+      expected-commit: 3c2d5aedd7708c75710b39268631762de904c304
+
+  - runs: ./autogen.sh
 
   - uses: autoconf/configure
     with:

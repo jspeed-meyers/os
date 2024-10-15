@@ -1,21 +1,22 @@
 package:
   name: font-util
   version: 1.4.1
-  epoch: 0
+  epoch: 1
   description: X.org font utilities
   copyright:
-    - license: custom
+    - license: LicenseRef-xorg-font-util
+      license-path: COPYING
 
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - util-macros
       - perl
+      - util-macros
 
 pipeline:
   - uses: fetch

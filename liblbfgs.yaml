@@ -9,14 +9,14 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-base
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
       - libtool
       - m4
+      - wolfi-base
 
 pipeline:
   - uses: fetch
@@ -56,3 +56,4 @@ subpackages:
 
 update:
   enabled: false
+  exclude-reason: No tags or releases since 2010.

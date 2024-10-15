@@ -1,108 +1,165 @@
 package:
   name: falco
-  version: 0.36.1
-  epoch: 0
+  version: 0.39.1 # on update check if we can remove the 'Patch falcosecurity-libs' pipeline below if https://github.com/falcosecurity/libs/pull/2079 is merged
+  epoch: 1
   description: Cloud Native Runtime Security
   copyright:
     - license: Apache-2.0
   dependencies:
     runtime:
       - falco-rules
+      - falcoctl
+
+vars:
+  llvm-vers: 19
 
 environment:
   contents:
     packages:
-      - build-base
-      - busybox
-      - ca-certificates-bundle
-      - clang-16
-      - gcc
-      - cmake
-      - make
-      - git
-      - bash
-      - perl
-      - linux-headers
+      - abseil-cpp-dev
       - autoconf
       - automake
-      - m4
-      - libtool
-      - elfutils-dev
-      - libelf
-      - libelf-static
-      - patch
+      - bash
       - binutils
-      - libbpf
-      - openssl
-      - openssl-dev
-      - yaml-dev
-      - c-ares
+      - bpftool
+      - build-base
+      - busybox
       - c-ares-dev
-      - protobuf
-      - protobuf-dev
-      - protobuf-c-dev
-      - re2
-      - re2-dev
-      - zlib-dev
-      - libcurl-openssl4
-      - llvm16
-      - abseil-cpp
-      - abseil-cpp-dev
-      - abseillib
-      - jq-dev
+      - ca-certificates-bundle
+      - clang-${{vars.llvm-vers}}-dev
+      - cmake
+      - cpp-httplib
       - curl-dev
-      - grpc
-      - grpc-dev
-      - icu
+      - cxxopts-dev
+      - elfutils-dev
+      - git
+      # <= 0.39.1 is incompatible with grpc 1.67 due to a removal of deprecated symbols falco was relying on.
+      # We should remove this pinning once falco is updated to use the new abseil API.
+      - grpc-1.66-dev
       - icu-dev
-      - yaml-cpp
-      - yaml-cpp-dev
-      - systemd-dev
+      - jq-dev
+      - jsoncpp-dev
+      - libbpf-dev
+      - libcurl-openssl4
+      - libelf
       - libsystemd
+      - libtbb-dev
+      - libtool
       - libzstd1
+      - linux-headers
+      - llvm-${{vars.llvm-vers}}
+      - m4
+      - make
+      - nlohmann-json
+      - openssl-dev
+      - patch
+      - perl
+      - protobuf-dev
+      - re2-dev
+      - systemd-dev
+      # TODO: Believe these are needed for 'make sinsp' to succeed.
+      - tinydir
+      - uthash
+      - valijson
+      - yaml-cpp-dev
+      - yaml-dev
+      - zlib-dev
       - zstd
       - zstd-dev
-      - libtbb-dev
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/falcosecurity/falco
       tag: ${{package.version}}
-      expected-commit: 9eb611609a2876a5f5a5378e0613f0ff767f0d42
+      expected-commit: 2804d60bd2f9088bf17b868d7feb19e9fb4372ee
       recurse-submodules: true
 
-  - runs: |
-      # Replace the find_dependency with find_package macro for newer cmake, otherwise it will fail.
-      sed -i 's/find_dependency(Protobuf CONFIG)/find_package(Protobuf CONFIG)/' /usr/lib64/cmake/grpc/gRPCConfig.cmake
+  - uses: patch
+    with:
+      # to prevent usage of vendored tbb
+      patches: tbb.patch libcurl-include.patch
 
   - runs: |
       mkdir -p "${{targets.destdir}}"/etc/falco
       install -Dm755 ./falco.yaml "${{targets.destdir}}"/etc/falco/falco.yaml
-      sed -e 's/time_format_iso_8601: false/time_format_iso_8601: true/' < "${{targets.destdir}}"/etc/falco/falco.yaml
 
-  - working-directory: build
+  - runs: |
+      sed -i '165s/${FALCO_LIBRARIES}/${FALCO_LIBRARIES} zstd/' userspace/falco/CMakeLists.txt
+
+  - working-directory: /home/build/build
+    # NOTE: These flags have been specifically set. Do not go changing these
+    # as part of development! They need to be set as they are.
+    # TODO: REMOVE THIS COMMENT ABOVE BEFORE MERGING
     pipeline:
       - runs: |
-          cmake \
-            -DCMAKE_INSTALL_PREFIX=/usr \
-            -DCMAKE_INSTALL_LIBDIR=/usr/lib \
-            -DFALCO_ETC_DIR=/etc/falco \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DUSE_BUNDLED_DEPS=Off \
-            -DMINIMAL_BUILD=On \
-            -DBUILD_DRIVER=On \
-            -DBUILD_FALCO_MODERN_BPF=Off \
-            -DBUILD_BPF=Off \
-          ..
+          cmake                                     \
+            -Wno-dev                                \
+            -DCMAKE_INSTALL_PREFIX=/usr             \
+            -DCMAKE_INSTALL_LIBDIR=lib              \
+            -DCMAKE_BUILD_TYPE=MinSizeRel           \
+            -DUSE_BUNDLED_TBB=OFF                   \
+            -DUSE_BUNDLED_RE2=OFF                   \
+            -DUSE_BUNDLED_JSONCPP=OFF               \
+            -DBUILD_FALCO_MODERN_BPF=ON             \
+            -DBUILD_STATIC_LIBS=OFF                 \
+            -DUSE_BUNDLED_DEPS=OFF                  \
+            -DBUILD_SHARED_LIBS=ON                  \
+            -DBUILD_DRIVER=OFF                      \
+            -DFALCOSECURITY_SHARED_LIBS_VERSION=0   \
+            -DFALCOSECURITY_SHARED_LIBS_SOVERSION=0 \
+            ..
+      - name: Patch falcosecurity-libs
+        runs: |
+          # add appropriate include paths to fix gvisor on x86_64
+          # lots of good discussion and help from an upstream maintainer (@LucaGuerra) https://github.com/wolfi-dev/os/pull/26622#discussion_r1768659440
+          sed -i '/set_property(TARGET scap_engine_gvisor_o PROPERTY POSITION_INDEPENDENT_CODE ON)/a \
+          target_include_directories( \
+              scap_engine_gvisor_o \
+              PRIVATE \
+                  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> \
+                  $<BUILD_INTERFACE:${LIBS_DIR}> \
+                  $<BUILD_INTERFACE:${LIBS_DIR}/userspace> \
+                  $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}> \
+          )' falcosecurity-libs-repo/falcosecurity-libs-prefix/src/falcosecurity-libs/userspace/libscap/engine/gvisor/CMakeLists.txt
       - runs: |
-          make falco
+          make falco -j$(nproc)
+          make install PREFIX="/usr" DESTDIR="${{targets.destdir}}"
           install -Dm755 ./userspace/falco/falco "${{targets.destdir}}"/usr/bin/falco
+      # TODO: This should be removed after falcosecurity/libs is fixed to build pman staticly.
+      # We use an exit 0 to allow the install failure to be suppressed so that nothing breaks once
+      # falcosecurity/libs is fixed.
+      - runs: |
+          install -D -m755 ./libpman/libpman.so "${{targets.destdir}}"/usr/lib || exit 0
+
+  # Do not conflict with the falco-rules and falcoctl package.
+  - runs: |
+      rm -f "${{targets.destdir}}"/etc/falco/falco_rules.yaml
+      rm -f "${{targets.destdir}}"/usr/bin/falcoctl
 
   - uses: strip
+
+subpackages:
+  - name: falco-src
+    description: Falco kernel module sources
+    pipeline:
+      - runs: |
+          mkdir -p "${{targets.contextdir}}"/usr
+          mv "${{targets.destdir}}"/usr/src "${{targets.contextdir}}"/usr/src
+
+  - name: falco-dev
+    description: Falco development headers
+    pipeline:
+      - uses: split/dev
 
 update:
   enabled: true
   github:
     identifier: falcosecurity/falco
-    strip-prefix: v
+
+test:
+  pipeline:
+    # AUTOGENERATED
+    - runs: |
+        falco --version
+        falco --help

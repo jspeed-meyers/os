@@ -2,7 +2,7 @@
 package:
   name: perl-file-sharedir
   version: "1.118"
-  epoch: 1
+  epoch: 2
   description: Locate per-dist and per-module shared files
   copyright:
     - license: GPL-1.0-or-later OR Artistic-1.0-Perl
@@ -16,15 +16,15 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - perl-file-sharedir-install
-      - perl-inc-latest
       - perl
       - perl-class-inspector
+      - perl-file-sharedir-install
+      - perl-inc-latest
 
 pipeline:
   - uses: fetch

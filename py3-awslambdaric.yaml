@@ -1,0 +1,85 @@
+package:
+  name: py3-awslambdaric
+  version: 2.2.1
+  epoch: 2
+  description: AWS Lambda Runtime Interface Client for Python
+  copyright:
+    - license: Apache-2.0
+  dependencies:
+    provider-priority: 0
+
+vars:
+  pypi-package: awslambdaric
+  import: awslambdaric
+
+data:
+  - name: py-versions
+    items:
+      3.10: '310'
+      3.11: '311'
+      3.12: '312'
+      3.13: '300'
+
+environment:
+  contents:
+    packages:
+      - autoconf
+      - automake
+      - aws-crt-cpp-dev
+      - cmake
+      - libtool
+      - make
+      - openssf-compiler-options
+      - openssl-dev
+      - py3-supported-build-base-dev
+      - py3-supported-gpep517
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/aws/aws-lambda-python-runtime-interface-client
+      tag: ${{package.version}}
+      expected-commit: 2fe3ecab9c184667a9633095dded480c4ca9c147
+
+subpackages:
+  - range: py-versions
+    name: py${{range.key}}-${{vars.pypi-package}}
+    description: python${{range.key}} version of ${{vars.pypi-package}}
+    dependencies:
+      provider-priority: ${{range.value}}
+      provides:
+        - py3-${{vars.pypi-package}}
+    pipeline:
+      - uses: py/pip-build-install
+        with:
+          python: python${{range.key}}
+      - uses: strip
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python${{range.key}}
+            imports: |
+              import ${{vars.import}}
+
+  - name: py3-supported-${{vars.pypi-package}}
+    description: meta package providing ${{vars.pypi-package}} for supported python versions.
+    dependencies:
+      runtime:
+        - py3.10-${{vars.pypi-package}}
+        - py3.11-${{vars.pypi-package}}
+        - py3.12-${{vars.pypi-package}}
+        - py3.13-${{vars.pypi-package}}
+
+test:
+  pipeline:
+    - uses: python/import
+      with:
+        imports: |
+          import ${{vars.import}}
+
+update:
+  enabled: true
+  github:
+    identifier: aws/aws-lambda-python-runtime-interface-client
+    strip-prefix: v

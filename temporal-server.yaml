@@ -1,19 +1,23 @@
 package:
   name: temporal-server
-  version: 1.22.0
-  epoch: 2
+  version: 1.25.1
+  epoch: 0
   description: Temporal server executes units of application logic, Workflows, in a resilient manner that automatically handles intermittent failures, and retries failed operations
   copyright:
-    - license: MIT License
+    - license: MIT
+  dependencies:
+    runtime:
+      - tctl
 
 environment:
   contents:
     packages:
-      - wolfi-baselayout
-      - busybox
       - build-base
-      - go
+      - busybox
       - ca-certificates-bundle
+      - go
+      - tctl
+      - wolfi-baselayout
   environment:
     CGO_ENABLED: 0
 
@@ -22,7 +26,7 @@ pipeline:
     with:
       repository: https://github.com/temporalio/temporal
       tag: v${{package.version}}
-      expected-commit: 9b877fae2dffc7721e70e7f7457c96e3570c379e
+      expected-commit: 72d6a9c0e531b34fd696d121a95f435a4957cd05
 
   - runs: |
       make bins
@@ -33,12 +37,33 @@ pipeline:
   - uses: strip
 
 subpackages:
+  - name: temporal-server-compat
+    description: "Compat package for temporal-server"
+    pipeline:
+      - runs: |
+          mkdir -p "${{targets.subpkgdir}}"/usr/local/bin
+          ln -s /usr/bin/temporal-server "${{targets.contextdir}}"/usr/local/bin
+      - uses: strip
+
   - name: temporal-cassandra-tool
     description: "temporal-cassandra-tool"
     pipeline:
       - runs: |
           mkdir -p "${{targets.subpkgdir}}"/usr/bin
           install -Dm755 temporal-cassandra-tool "${{targets.subpkgdir}}"/usr/bin/temporal-cassandra-tool
+      - uses: strip
+    test:
+      pipeline:
+        - runs: |
+            temporal-cassandra-tool --version
+            temporal-cassandra-tool --help
+
+  - name: temporal-cassandra-tool-compat
+    description: "Compat package for temporal-cassandra-tool"
+    pipeline:
+      - runs: |
+          mkdir -p "${{targets.subpkgdir}}"/usr/local/bin
+          ln -s /usr/bin/temporal-cassandra-tool "${{targets.subpkgdir}}"/usr/local/bin
       - uses: strip
 
   - name: tdbg
@@ -48,6 +73,19 @@ subpackages:
           mkdir -p "${{targets.subpkgdir}}"/usr/bin
           install -Dm755 tdbg "${{targets.subpkgdir}}"/usr/bin/tdbg
       - uses: strip
+    test:
+      pipeline:
+        - runs: |
+            tdbg --version
+            tdbg --help
+
+  - name: tdbg-compat
+    description: "Compat package for tdbg"
+    pipeline:
+      - runs: |
+          mkdir -p "${{targets.subpkgdir}}"/usr/local/bin
+          ln -s /usr/bin/tdbg "${{targets.subpkgdir}}"/usr/local/bin
+      - uses: strip
 
   - name: temporal-sql-tool
     description: "temporal-sql-tool"
@@ -56,11 +94,52 @@ subpackages:
           mkdir -p "${{targets.subpkgdir}}"/usr/bin
           install -Dm755 temporal-sql-tool "${{targets.subpkgdir}}"/usr/bin/temporal-sql-tool
       - uses: strip
+    test:
+      pipeline:
+        - runs: |
+            temporal-sql-tool --version
+            temporal-sql-tool --help
+
+  - name: temporal-sql-tool-compat
+    description: "Compat package for temporal-sql-tool"
+    pipeline:
+      - runs: |
+          mkdir -p "${{targets.subpkgdir}}"/usr/local/bin
+          ln -s /usr/bin/temporal-sql-tool "${{targets.subpkgdir}}"/usr/local/bin
+      - uses: strip
+
+  - name: temporal-server-oci-entrypoint
+    description: Entrypoint for using temporal server in OCI containers
+    dependencies:
+      runtime:
+        - bash
+        - temporal-docker-builds
+        - tctl
+    pipeline:
+      - runs: |
+          mkdir -p ${{targets.subpkgdir}}/etc/temporal/config/dynamicconfig
+          cp config/dynamicconfig/docker.yaml ${{targets.subpkgdir}}/etc/temporal/config/dynamicconfig
+          cp docker/config_template.yaml ${{targets.subpkgdir}}/etc/temporal/config
+
+  - name: temporal-server-schema
+    description: Schema for using temporal server needby temporal admin tools
+    dependencies:
+      runtime:
+        - bash
+    pipeline:
+      - runs: |
+          mkdir -p ${{targets.subpkgdir}}/etc/temporal/schema
+          cp -r schema ${{targets.subpkgdir}}/etc/temporal/
 
 update:
   enabled: true
   github:
     identifier: temporalio/temporal
     strip-prefix: v
-    use-tag: true
-    tag-filter: v
+
+test:
+  pipeline:
+    - runs: |
+        set -o pipefail
+        temporal-server --version | grep "${{package.version}}"
+        temporal-server --help

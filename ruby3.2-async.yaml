@@ -1,7 +1,7 @@
 package:
   name: ruby3.2-async
-  version: 2.6.2
-  epoch: 1
+  version: 2.14.2
+  epoch: 0
   description: A concurrency framework for Ruby.
   copyright:
     - license: MIT
@@ -15,21 +15,22 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - ruby-3.2
-      - ruby-3.2-dev
       - build-base
       - busybox
+      - ca-certificates-bundle
       - git
+      - ruby-3.2
+      - ruby-3.2-dev
 
 vars:
   gem: async
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 9250c42fd0719676a9d008cd8814fd0907938d2ddede540172a4c41c0f7abc69
-      uri: https://github.com/socketry/async/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: 9942abde424035f6adeb6b5ad5f00c4b41971efd
+      repository: https://github.com/socketry/async
+      tag: v${{package.version}}
 
   - uses: patch
     with:

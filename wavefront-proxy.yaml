@@ -1,39 +1,34 @@
 package:
   name: wavefront-proxy
-  version: "13.3" # When version is bumped, check if patches are still needed to address CVE-2023-34462
-  epoch: 1
+  version: "13.7" # When version is bumped, check if patches are still needed to address CVE-2023-1428
+  epoch: 2
   description: Wavefront Proxy Project
   copyright:
     - license: Apache-2.0
   dependencies:
     runtime:
-      - openjdk-11-jre
       - openjdk-11-default-jvm
+      - openjdk-11-jre
 
 environment:
   contents:
     packages:
-      - wolfi-baselayout
-      - busybox
       - build-base
-      - openjdk-11-default-jvm
-      - maven
+      - busybox
       - ca-certificates-bundle
+      - maven
+      - openjdk-11-default-jvm
+      - wolfi-baselayout
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/wavefronthq/wavefront-proxy
       tag: proxy-${{package.version}}
-      expected-commit: 35604d4a5b2f2d78dbc7cf5a760a11a5cceee909
+      expected-commit: e33c03f6ad3d9d05a5c909ac9aecd04ab5199f49
 
-  - uses: patch
-    with:
-      patches: 0001-PATCH-netty-version.patch
-
-  - uses: patch
-    with:
-      patches: 0002-PATCH-avro-version.patch
+  - uses: maven/pombump
+    working-directory: proxy
 
   - runs: |
       export LANG=en_US.UTF-8
@@ -76,6 +71,29 @@ subpackages:
       runtime:
         - wavefront-proxy-config
         - wavefront-proxy-licenses
+
+test:
+  environment:
+    contents:
+      packages:
+        - busybox
+  pipeline:
+    - runs: |
+        set -- java -jar /usr/share/java/wavefront/wavefront-proxy/wavefront-proxy.jar
+        "$@" --help >out 2>&1 || {
+          rc=$?;
+          echo "failed [$rc]: $*"
+          cat out
+          exit $rc;
+        }
+        expected="Wavefront Proxy version ${{package.version}}"
+        grep "$expected" out || {
+          echo "command '$* --help' did not contain expected output"
+          echo "expected: $expected"
+          echo "actual:"
+          cat out
+          exit 1
+        }
 
 update:
   enabled: true

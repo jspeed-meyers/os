@@ -1,39 +1,41 @@
 package:
   name: restic
-  # When bumping the version check if the CVE/GHSA mitigations below can be removed.
-  version: 0.16.0
-  epoch: 4
+  version: 0.17.1
+  epoch: 1
   description: restic is a backup program which allows saving multiple revisions of files and directories in an encrypted repository stored on different backends
   copyright:
     - license: BSD-2-Clause
 
-environment:
-  contents:
-    packages:
-      - ca-certificates-bundle
-      - busybox
-      - go
-
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/restic/restic/archive/refs/tags/v${{package.version}}.tar.gz
-      expected-sha256: b91f5ef6203a5c50a72943c21aaef336e1344f19a3afd35406c00f065db8a8b9
+      repository: https://github.com/restic/restic
+      tag: v${{package.version}}
+      expected-commit: 975aa41e1e6a1c88deb501451f23cbdbb013f1da
 
-  - runs: |
-      # Mititage CVE-2022-41723 / GHSA-vvpx-j8f3-3w6h
-      go get golang.org/x/net@v0.8.0
-      go mod tidy
+  - uses: go/build
+    with:
+      packages: ./cmd/restic
+      output: restic
+      ldflags: "-X main.version=${{package.version}}"
 
-      CGO_ENABLED=0 go build \
-        -trimpath -ldflags \
-        "-s -w -buildid= -X main.version=${{package.version}}" \
-        -o "${{targets.destdir}}/usr/bin/restic" ./cmd/restic
-
-  - uses: strip
+subpackages:
+  - name: ${{package.name}}-compat
+    description: "Compatibility package to place binaries in the location expected by upstream helm charts"
+    pipeline:
+      - runs: |
+          # The helm chart expects the binaries to be in / instead of /usr/bin
+          mkdir -p "${{targets.subpkgdir}}"
+          ln -sf /usr/bin/restic ${{targets.subpkgdir}}/restic
 
 update:
   enabled: true
   github:
     identifier: restic/restic
     strip-prefix: v
+
+test:
+  pipeline:
+    - runs: |
+        restic version
+        restic --help

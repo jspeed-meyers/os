@@ -1,46 +1,47 @@
 package:
   name: py3-nltk
-  version: 3.8.1
-  epoch: 0
+  version: 3.9.1
+  epoch: 1
   description: Natural Language Toolkit
   copyright:
-    - license: BSD
+    - license: BSD-3-Clause
   dependencies:
     runtime:
       - numpy
-      - py3-scipy
-      - py3-matplotlib
-      - py3-scikit-learn
-      - py3-parsing
       - py3-click
       - py3-joblib
-      - py3-regex
-      - py3-tqdm
+      - py3-matplotlib
       - py3-mdit-plain
       - py3-mdit-py-plugins
+      - py3-parsing
+      - py3-regex
+      - py3-scikit-learn
+      - py3-scipy
+      - py3-tqdm
       - py3-twython
-      - python3
 
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - wolfi-base
-      - busybox
       - build-base
-      - python3
-      - py3-setuptools
+      - busybox
+      - ca-certificates-bundle
       - py3-click
       - py3-joblib
       - py3-regex
+      - py3-setuptools
       - py3-tqdm
+      - python3
+      - wolfi-base
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/nltk/nltk
-      expected-commit: 63a63b1a7793aceceb1efc23bc1fd87e7095f9d5
+      expected-commit: aca78cb2add4084f76b9eac921d8a73927d7a086
       tag: ${{package.version}}
+      cherry-picks: |
+        develop/7d1cbc71441f607daea0894333912268e2911cab: required to "import nltk"
 
   - name: Python Build
     uses: python/build
@@ -49,6 +50,16 @@ pipeline:
     uses: python/install
 
   - uses: strip
+
+test:
+  pipeline:
+    - uses: python/import
+      with:
+        imports: |
+          import nltk
+      runs: |
+        nltk --version
+        nltk --help
 
 update:
   enabled: true

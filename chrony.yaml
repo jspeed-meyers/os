@@ -1,6 +1,6 @@
 package:
   name: chrony
-  version: "4.4"
+  version: 4.6.1
   epoch: 0
   description: NTP client and server programs
   copyright:
@@ -9,17 +9,17 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-baselayout
-      - ca-certificates-bundle
-      - build-base
       - asciidoctor
-      - libcap-dev
-      - texinfo
-      - nettle-dev
-      - gnutls-dev
-      - libseccomp-dev
       - bash
+      - build-base
       - busybox
+      - ca-certificates-bundle
+      - gnutls-dev
+      - libcap-dev
+      - libseccomp-dev
+      - nettle-dev
+      - texinfo
+      - wolfi-baselayout
   accounts:
     groups:
       - groupname: chrony
@@ -31,8 +31,8 @@ environment:
 pipeline:
   - uses: fetch
     with:
-      expected-sha512: 45e060eb0c5892552f28dc436429e5823409cc93533127af27b64d08ff9c769fdc72694272232114f5ca1884c2bc8b5e842fae7956dc457358e937bcd3dda4d7
-      uri: "https://download.tuxfamily.org/chrony/chrony-${{package.version}}.tar.gz"
+      expected-sha512: 646ae08f2587366236796f2399d8ab3eb570979e0d82f5d13f5cec49939054c876cc93dc20c8d38e105fd3500e1720d05a223a15076783cd882d0de43afd9c7e
+      uri: "https://chrony-project.org/releases/chrony-${{package.version}}.tar.gz"
 
   - runs: |
       mkdir -p pps-tools/sys
@@ -82,3 +82,30 @@ update:
   enabled: true
   release-monitor:
     identifier: 8810
+
+test:
+  environment:
+    contents:
+      packages:
+        - procps
+        - shadow
+  pipeline:
+    - name: "Check chrony version"
+      runs: |
+        chronyd --version
+        chronyc --version
+        chronyc --help
+        chronyd --help
+    - name: "Setup chrony user and group"
+      runs: |
+        groupadd -g 10000 chrony
+        useradd -u 10000 -g chrony -d /var/lib/chrony -s /sbin/nologin chrony
+        chown -R chrony:chrony /var/lib/chrony /etc/chrony
+        chown root:wheel /var/log/chrony
+        chmod 2750 /var/log/chrony
+    - name: "Test chronyd configuration parsing and system clock check"
+      runs: |
+        cat > test.conf << EOF
+        pool pool.ntp.org iburst
+        EOF
+        chronyd -Q -f test.conf 2>&1 | grep -E "System clock wrong by -?[0-9]+\.[0-9]+ seconds \(ignored\)"

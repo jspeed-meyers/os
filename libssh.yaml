@@ -1,28 +1,29 @@
 package:
   name: libssh
-  version: 0.10.5
+  version: 0.11.1
   epoch: 0
   description: Library for accessing ssh client services through C libraries
   copyright:
-    - license: LGPL-2.1-or-later BSD-2-Clause
+    - license: LGPL-2.1-or-later AND BSD-2-Clause
 
 environment:
   contents:
     packages:
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
       - cmake
-      - samurai
       - openssl-dev
-      - zlib-dev
+      - samurai
       - xz
+      - zlib-dev
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha512: 2b758f9df2b5937865d4aee775ffeafafe3ae6739a89dfc470e38c7394e3c3cb5fcf8f842fdae04929890ee7e47bf8f50e3a38e82dfd26a009f3aae009d589e0
-      uri: https://www.libssh.org/files/0.10/libssh-${{package.version}}.tar.xz
+      repository: https://git.libssh.org/projects/libssh.git
+      tag: libssh-${{package.version}}
+      expected-commit: 854795c654eda518ed6de6c1ebb4e2107fcb2e73
 
   - runs: |
       cmake -B build -G Ninja \
@@ -44,5 +45,6 @@ subpackages:
 
 update:
   enabled: true
-  release-monitor:
-    identifier: 1729
+  git:
+    tag-filter-prefix: "libssh-"
+    strip-prefix: "libssh-"

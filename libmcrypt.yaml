@@ -10,15 +10,15 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - build-base
-      - binutils
-      - busybox
-      - automake
       - autoconf
-      - libtool
-      - gcc
+      - automake
+      - binutils
+      - build-base
+      - busybox
+      - ca-certificates-bundle
       - cmake
+      - gcc
+      - libtool
 
 pipeline:
   - uses: fetch
@@ -61,6 +61,10 @@ subpackages:
     description: "headers for libmcrypt"
     pipeline:
       - uses: split/dev
+    test:
+      pipeline:
+        - runs: |
+            libmcrypt-config --version
 
   - name: "libmcrypt-doc"
     description: "libmcrypt manpages"

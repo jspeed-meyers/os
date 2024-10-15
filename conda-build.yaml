@@ -1,11 +1,11 @@
 # Generated from https://pypi.org/project/conda-build/
 package:
   name: conda-build
-  version: 3.27.0
+  version: 24.9.0
   epoch: 0
   description: tools for building conda packages
   copyright:
-    - license: BSD 3-clause
+    - license: BSD-3-Clause
   dependencies:
     runtime:
       - conda
@@ -20,18 +20,22 @@ environment:
       - busybox
       - ca-certificates-bundle
       - conda
+      - py3-hatch
       - py3-hatchling
+      - py3-installer
       - py3-pip
       - py3-setuptools
       - py3-wheel
-      - py3-hatch
       - python-3
       - wolfi-base
+  environment:
+    # This is needed to work around the error "ValueError: ZIP does not support timestamps before 1980"
+    SOURCE_DATE_EPOCH: 315532800
 
 pipeline:
   - uses: git-checkout
     with:
-      expected-commit: 27ea32b223ce412be5412e166068aeecf503880d
+      expected-commit: 9133820c20e9ee33ba877da93c558ef7055ff6a8
       repository: https://github.com/conda/conda-build
       tag: ${{package.version}}
 

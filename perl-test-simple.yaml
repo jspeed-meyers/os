@@ -1,29 +1,30 @@
-# Generated from https://git.alpinelinux.org/aports/plain/main/perl-test-simple/APKBUILD
 package:
   name: perl-test-simple
-  version: "1.302195"
-  epoch: 1
+  version: "1.302204"
+  epoch: 0
   description: Basic utilities for writing tests
   copyright:
     - license: GPL-1.0-or-later OR Artistic-1.0-Perl
   dependencies:
     runtime:
       - perl
+    provides:
+      - perl-test2-suite=${{package.full-version}}
 
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
       - perl
 
 pipeline:
   - uses: fetch
     with:
-      expected-sha512: eb39f28c65e7592fb6464a32161ae4f402a32bc1f458e991d6fac17828605985533a649ea976654ef9cef4ec903f752aa4b6228540c953628b0b63cc70e4515f
+      expected-sha512: 1b77604292d2d8af84c6126599bf80094683ce8ab2dcbd1d5049a6599a1d4dad815953e4baa8ffd4729db0f3d98cf56ecf5cb1b26d6589cf6978e57fba79b0ad
       uri: https://cpan.metacpan.org/authors/id/E/EX/EXODIST/Test-Simple-${{package.version}}.tar.gz
 
   - uses: perl/make

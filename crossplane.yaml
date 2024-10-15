@@ -1,7 +1,7 @@
 package:
   name: crossplane
-  version: 1.13.2
-  epoch: 1
+  version: 1.17.1
+  epoch: 0
   description: Cloud Native Control Planes
   copyright:
     - license: Apache-2.0
@@ -13,9 +13,9 @@ environment:
 pipeline:
   - uses: git-checkout
     with:
+      expected-commit: a33ee41b1bfdc345a2b1ba7862ad7837011aad69
       repository: https://github.com/crossplane/crossplane
       tag: v${{package.version}}
-      expected-commit: 8c7fb7f2fa23ef5937a36260a80a87428f9d1f2b
 
   - runs: |
       mkdir -p ${{targets.destdir}}/crds
@@ -24,31 +24,40 @@ pipeline:
       mkdir -p ${{targets.destdir}}/webhookconfigurations
       cp cluster/webhookconfigurations/* ${{targets.destdir}}/webhookconfigurations
 
+  - uses: go/bump
+    with:
+      deps: github.com/docker/docker@v26.1.5
+
   - uses: go/build
     with:
-      packages: ./cmd/crossplane
       output: crossplane
-      # CVE-2023-39325 and CVE-2023-3978
-      deps: golang.org/x/net@v0.17.0
-      ldflags: -w
+      packages: ./cmd/crossplane
+      ldflags: -X github.com/crossplane/crossplane/internal/version.version=v${{package.version}}
 
   - uses: strip
 
 subpackages:
-  - name: crossplane-xfn
+  - name: crossplane-crank
     pipeline:
       - uses: go/build
         with:
-          packages: ./cmd/xfn
-          output: xfn
-          subpackage: "true"
-          # CVE-2023-39325 and CVE-2023-3978
-          deps: golang.org/x/net@v0.17.0 github.com/cyphar/filepath-securejoin@v0.2.4
-          ldflags: -w
+          output: crank
+          packages: ./cmd/crank
       - uses: strip
+    test:
+      pipeline:
+        - runs: |
+            crank --help
 
 update:
   enabled: true
   github:
     identifier: crossplane/crossplane
     strip-prefix: v
+
+test:
+  pipeline:
+    - name: version and help output
+      runs: |
+        crossplane --version
+        crossplane --help

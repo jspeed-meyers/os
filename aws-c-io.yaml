@@ -1,6 +1,6 @@
 package:
   name: aws-c-io
-  version: 0.13.35
+  version: 0.14.19
   epoch: 0
   description: Module for the AWS SDK for C handling all IO and TLS work for application protocols
   copyright:
@@ -11,19 +11,21 @@ environment:
     packages:
       - aws-c-cal-dev
       - aws-c-common-dev
-      - busybox
       - build-base
+      - busybox
       - ca-certificates-bundle
       - cmake
-      - s2n-tls-dev
+      - openssf-compiler-options
       - openssl-dev
+      - s2n-tls-dev
       - samurai
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: a9232dbbb3324de36a280859a4ea84dd2b75e47961805f1cffe0f3a7e1831711
-      uri: https://github.com/awslabs/aws-c-io/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: dc41ddc498c10ebbf69aba7775afa36c8c1910bd
+      repository: https://github.com/awslabs/aws-c-io
+      tag: v${{package.version}}
 
   - runs: |
       if [ "$CBUILD" != "$CHOST" ]; then
@@ -65,3 +67,37 @@ update:
     identifier: awslabs/aws-c-io
     strip-prefix: v
     use-tag: true
+
+test:
+  environment:
+    contents:
+      packages:
+        - aws-c-common-dev
+        - aws-c-io-dev
+        - bash
+        - build-base
+        - gcc
+        - s2n-tls-dev
+  pipeline:
+    - name: "Check aws-c-io Installation"
+      runs: |
+        echo "Verifying aws-c-io installation..."
+        find /usr /usr/local -name 'libaws-c-io.so' || (echo "aws-c-io library not found!" && exit 1)
+    - name: "Compile and Run aws-c-io Test Program"
+      runs: |
+        echo "Testing aws-c-io functionality..."
+        cat <<EOF > test_io.c
+        #include <aws/io/io.h>
+        #include <aws/common/common.h>
+        #include <stdio.h>
+
+        int main() {
+            struct aws_allocator *allocator = aws_default_allocator();
+            aws_io_library_init(allocator);
+            printf("AWS IO library initialized successfully\\n");
+            aws_io_library_clean_up();
+            return 0;
+        }
+        EOF
+        gcc test_io.c -o test_io -laws-c-io -laws-c-common
+        ./test_io || (echo "aws-c-io test failed!" && exit 1)

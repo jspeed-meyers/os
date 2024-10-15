@@ -1,17 +1,23 @@
 package:
   name: py3-pandas
-  version: 2.0.3
-  epoch: 1
+  version: 2.2.3
+  epoch: 3
   description: Powerful data structures for data analysis, time series, and statistics
   copyright:
-    - license: 'BSD-3-Clause'
+    - license: BSD-3-Clause
   dependencies:
-    runtime:
-      - numpy
-      - py3-dateutil
-      - py3-tz
-      - py3-tzdata
-      - python-3
+    provider-priority: 0
+
+vars:
+  pypi-package: pandas
+
+data:
+  - name: py-versions
+    items:
+      3.10: '310'
+      3.11: '311'
+      3.12: '312'
+      3.13: '300'
 
 environment:
   contents:
@@ -22,35 +28,63 @@ environment:
       - cython
       - meson
       - numpy
-      - py3-dateutil
-      - py3-gpep517
-      - py3-meson-python
-      - py3-setuptools
-      - py3-tz
-      - py3-tzdata
-      - py3-versioneer
-      - py3-wheel
-      - python-3
-      - python-3-dev
+      - py3-supported-cython
+      - py3-supported-meson-python
+      - py3-supported-numpy
+      - py3-supported-pip
+      - py3-supported-python-dev
+      - py3-supported-versioneer
       - wolfi-base
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: c02f372a88e0d17f36d3093a644c73cfc1788e876a7c4bcb4020a77512e2043c
-      uri: https://github.com/pandas-dev/pandas/releases/download/v${{package.version}}/pandas-${{package.version}}.tar.gz
+      repository: https://github.com/pandas-dev/pandas
+      tag: v${{package.version}}
+      expected-commit: 0691c5cf90477d3503834d983f69350f250a6ff7
 
-  - runs: |
-      python3 -m gpep517 build-wheel --wheel-dir dist --output-fd 1
-      python3 -m installer -d "${{targets.destdir}}" dist/*.whl
+subpackages:
+  - range: py-versions
+    name: py${{range.key}}-${{vars.pypi-package}}
+    description: python${{range.key}} version of ${{vars.pypi-package}}
+    dependencies:
+      provider-priority: ${{range.value}}
+      provides:
+        - py3-${{vars.pypi-package}}
+      runtime:
+        - py${{range.key}}-numpy
+        - py${{range.key}}-pytz
+        - py${{range.key}}-dateutil
+        - py${{range.key}}-tzdata
+    pipeline:
+      - uses: py/pip-build-install
+        with:
+          python: python${{range.key}}
+      - uses: strip
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python${{range.key}}
+            import: ${{vars.pypi-package}}
 
-  - uses: strip
+  - name: py3-supported-${{vars.pypi-package}}
+    description: meta package providing ${{vars.pypi-package}} for supported python versions.
+    dependencies:
+      runtime:
+        - py3.10-${{vars.pypi-package}}
+        - py3.11-${{vars.pypi-package}}
+        - py3.12-${{vars.pypi-package}}
+        - py3.13-${{vars.pypi-package}}
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python3.10
+            import: ${{vars.pypi-package}}
 
 update:
-  # Pandas 2.1.1 fails to build from source, so skip updates for now.
-  # Fails with:
-  # ℹ️  aarch64   | /home/build/pandas/_libs/khash.pxd:129:0: 'khash_for_primitive_helper.pxi' not found
-  # Maybe related to: https://github.com/pandas-dev/pandas/issues/51875
-  enabled: false
-  release-monitor:
-    identifier: 7578
+  enabled: true
+  github:
+    identifier: pandas-dev/pandas
+    strip-prefix: v

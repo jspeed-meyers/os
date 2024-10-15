@@ -1,6 +1,6 @@
 package:
   name: ferretdb
-  version: 1.12.1
+  version: 1.24.0
   epoch: 1
   description: "A truly Open Source MongoDB alternative"
   copyright:
@@ -9,9 +9,9 @@ package:
 environment:
   contents:
     packages:
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
       - go
 
 pipeline:
@@ -19,7 +19,7 @@ pipeline:
     with:
       repository: https://github.com/FerretDB/FerretDB
       tag: v${{package.version}}
-      expected-commit: d1486f2b5d86eadfa6d148752b14fdde49cb5db9
+      expected-commit: 7d9c7b9922555c1c8b64fe1ac596f4c1efb570ce
 
   - uses: go/build
     with:

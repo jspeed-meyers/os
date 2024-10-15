@@ -2,7 +2,7 @@
 package:
   name: perl-module-install
   version: "1.21"
-  epoch: 1
+  epoch: 2
   description: Standalone, extensible Perl module installer
   copyright:
     - license: GPL-1.0-or-later OR Artistic-1.0-Perl
@@ -18,18 +18,18 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - perl-dev
-      - perl-yaml-tiny
       - perl
+      - perl-dev
+      - perl-devel-ppport
+      - perl-file-remove
       - perl-module-build
       - perl-module-scandeps
-      - perl-file-remove
-      - perl-devel-ppport
+      - perl-yaml-tiny
 
 pipeline:
   - uses: fetch

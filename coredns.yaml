@@ -1,56 +1,100 @@
 package:
   name: coredns
-  version: 1.11.1
-  epoch: 5
+  version: 1.11.3
+  epoch: 7
   description: CoreDNS is a DNS server that chains plugins
   copyright:
     - license: Apache-2.0
-  dependencies:
-    runtime:
-      - ca-certificates-bundle
 
 environment:
   contents:
     packages:
-      - wolfi-baselayout
-      - build-base
-      - ca-certificates-bundle
-      - busybox
-      - bash
-      - make
       - libcap-utils
-  environment:
-    CGO_ENABLED: 0
+      - make
 
 pipeline:
   - uses: git-checkout
     with:
+      expected-commit: a7ed346585e30b99317d36e4d007b7b19a228ea5
       repository: https://github.com/coredns/coredns
       tag: v${{package.version}}
-      expected-commit: ae2bbc29be1aaae0b3ded5d188968a6c97bb3144
 
   - runs: |
-      # Handle CVE-2022-41723 CVE-2023-39325 and CVE-2023-3978
-      go get golang.org/x/net@v0.17.0
-      go mod tidy
-
-      # Ensures plugins get included
-      make check
+      # Generate code and fetch plugins
+      make gen
 
   - uses: go/build
     with:
-      go-package: go-1.20 # pin to a specific version of Go as not working with go-1.21 yet
-      packages: .
+      ldflags: -X github.com/coredns/coredns/coremain.GitCommit=v${{package.version}}
       output: coredns
-      ldflags: -s -w -X github.com/coredns/coredns/coremain.GitCommit=v${{package.version}}
+      packages: .
 
-  - uses: strip
+  - runs: setcap cap_net_bind_service=+ep "${{targets.contextdir}}/usr/bin/coredns"
 
-  # This MUST run after strip, which strips capabilities too!
-  - runs: setcap cap_net_bind_service=+ep "${{targets.destdir}}/usr/bin/coredns"
+subpackages:
+  - name: kuma-coredns
+    description: CoreDNS with plugins used by Kuma
+    pipeline:
+      - runs: |
+          # Build with plugins used by Kuma
+          # Plugin list: https://github.com/kumahq/coredns-builds/blob/main/plugin.cfg
+          mv kuma-plugin.cfg plugin.cfg
+          # Generate code and fetch plugins
+          make gen
+      - uses: go/build
+        with:
+          ldflags: -X github.com/coredns/coredns/coremain.GitCommit=v${{package.version}}
+          output: coredns
+          packages: .
+    test:
+      pipeline:
+        - runs: |
+            coredns -version
+            coredns -plugins
 
 update:
   enabled: true
   github:
     identifier: coredns/coredns
     strip-prefix: v
+
+test:
+  environment:
+    contents:
+      packages:
+        - bind-tools
+  pipeline:
+    - runs: |
+        coredns -version
+        coredns -plugins
+        coredns --version
+        coredns --help
+    - runs: |
+        cat > Corefile <<EOF
+        .:1053 {
+            file /home/build/db.wolfi.dev
+            log
+            errors
+            cache
+        }
+        EOF
+
+        cat > /home/build/db.wolfi.dev <<'EOF'
+        $TTL 3600
+        @    IN SOA ns1.wolfi.dev. admin.wolfi.dev. (
+                  20240101   ; Serial
+                  7200       ; Refresh
+                  3600       ; Retry
+                  1209600    ; Expire
+                  3600 )     ; Negative Cache TTL
+        ;
+        @    IN NS  ns1.wolfi.dev.
+        ;
+        foo.wolfi.dev  IN TXT "hi"
+        EOF
+
+        coredns &
+        sleep 2
+
+        # validates intree plugins can be successfully loaded
+        dig @localhost -p 1053 foo.wolfi.dev TXT +short | grep -q '"hi"'

@@ -1,13 +1,12 @@
 package:
   name: py3-botocore
-  version: 1.31.68
+  version: 1.35.40
   epoch: 0
-  description: "The low-level, core functionality of Boto3"
+  description: The low-level, core functionality of Boto3
   copyright:
     - license: Apache-2.0
   dependencies:
     runtime:
-      - python3
       - py3-dateutil
       - py3-docutils
       - py3-jmespath
@@ -16,24 +15,27 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-base
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - python3
       - py3-setuptools
+      - python3
+      - wolfi-base
 
 pipeline:
   - uses: fetch
     with:
       uri: https://files.pythonhosted.org/packages/source/b/botocore/botocore-${{package.version}}.tar.gz
-      expected-sha256: 0813f02d00e46051364d9b5d5e697a90e988b336b87e949888c1444a59b8ba59
+      expected-sha256: 547e0a983856c7d7aeaa30fca2a283873c57c07366cd806d2d639856341b3c31
 
   - runs: |
       python3 setup.py build
 
   - runs: |
-      python3 setup.py install --prefix=/usr --root="${{targets.destdir}}"
+      python3 setup.py install --prefix=/usr --root="${{targets.contextdir}}" --skip-build
+
+  # Fix permissions; this has 777 permissions by default.
+  - runs: chmod -R 755 ${{targets.contextdir}}/usr/lib/python3.12/site-packages/botocore/data/ec2/2016-11-15/waiters-2.json
 
   - uses: strip
 
@@ -41,3 +43,39 @@ update:
   enabled: true
   release-monitor:
     identifier: 29738
+
+test:
+  environment:
+    contents:
+      packages:
+        - python3
+  pipeline:
+    - uses: python/import
+      with:
+        imports: |
+          import botocore
+          import botocore.session
+    - name: Mocked EC2 API Call Test
+      runs: |
+        echo "Testing mocked EC2 API call..."
+        python3 <<EOF-
+        import botocore.session
+        from botocore.stub import Stubber
+        session = botocore.session.Session()
+        ec2 = session.create_client('ec2', region_name='us-west-2')
+        stubber = Stubber(ec2)
+        response = {'Regions': [{'RegionName': 'us-west-2', 'Endpoint': 'ec2.us-west-2.amazonaws.com'}]}
+        stubber.add_response('describe_regions', response)
+        stubber.activate()
+        assert ec2.describe_regions() == response, 'Mocked EC2 call failed'
+        print('Mocked EC2 API call success')
+        EOF-
+    - name: Validate EC2 JSON Data
+      runs: |
+        echo "Testing if EC2 JSON waiter data is accessible..."
+        python3 <<EOF-
+        import os
+        ec2_waiter = '/usr/lib/python3.12/site-packages/botocore/data/ec2/2016-11-15/waiters-2.json'
+        assert os.path.isfile(ec2_waiter), 'EC2 waiter JSON not found'
+        print('EC2 waiter JSON validated')
+        EOF-

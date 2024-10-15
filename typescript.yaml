@@ -1,38 +1,60 @@
 package:
   name: typescript
-  version: 5.2.2
-  epoch: 1
+  version: 5.6.3
+  epoch: 0
   description: "TypeScript is a superset of JavaScript that compiles to clean JavaScript output."
   copyright:
     - license: Apache-2.0
+  dependencies:
+    runtime:
+      - nodejs
 
 environment:
   contents:
     packages:
-      - wolfi-base
       - build-base
-      - nodejs-18
       - ca-certificates-bundle
       - curl
       - git
+      - nodejs-20
       - npm
+      - wolfi-base
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/microsoft/TypeScript
       tag: v${{package.version}}
-      expected-commit: 9684ba6b0d73c37546ada901e5d0a5324de7fc1d
+      expected-commit: d48a5cf89a62a62d6c6ed53ffa18f070d9458b85
 
   - runs: |
       npm ci
       npx hereby LKG
 
       mkdir -p "${{targets.destdir}}"/usr/lib/node_modules/typescript
+      mv lib "${{targets.destdir}}"/usr/lib/node_modules/typescript/lib
+      mv bin "${{targets.destdir}}"/usr/lib/node_modules/typescript/bin
+
       mkdir -p "${{targets.destdir}}"/usr/bin
-      mv lib/* "${{targets.destdir}}"/usr/lib/node_modules/typescript
-      mv bin/tsc "${{targets.destdir}}"/usr/bin/tsc
-      mv bin/tsserver "${{targets.destdir}}"/usr/bin/tsserver
+      for f in "${{targets.destdir}}"/usr/lib/node_modules/typescript/bin/*; do
+        ln -s "/usr/lib/node_modules/typescript/bin/$(basename $f)" "${{targets.destdir}}/usr/bin/$(basename $f)"
+      done
+
+test:
+  pipeline:
+    - runs: |
+        tsc --version
+        tsc --help
+        tsserver --version
+        tsserver --help
+    - runs: |
+        cat <<EOF > hello.ts
+         let message: string = 'Hello, Wolfi!';
+         console.log(message);
+        EOF
+
+        tsc hello.ts
+        node hello.js | grep "Wolfi"
 
 update:
   enabled: true

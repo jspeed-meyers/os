@@ -1,7 +1,7 @@
 package:
   name: kubeflow-pipelines
-  version: 2.1.3
-  epoch: 7
+  version: 2.3.0
+  epoch: 1
   description: Machine Learning Pipelines for Kubeflow
   checks:
     disabled:
@@ -12,23 +12,24 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-base
+      - argo-cd
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
+      - eslint
+      - git
       - go
       - go-licenses
-      - git
-      - argo-cd
-      - python3-dev
-      - py3-setuptools
-      - py3-gpep517
-      - py3-wheel
-      - py3-pip
+      - jq
       - kubectl
       - nodejs
-      - jq
-      - eslint
+      - npm
+      - py3-gpep517
+      - py3-pip
+      - py3-setuptools
+      - py3-urllib3
+      - py3-wheel
+      - python3-dev
 
 data:
   - name: backends-go-builds
@@ -43,12 +44,24 @@ pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/kubeflow/pipelines
-      tag: sdk-${{package.version}}
-      expected-commit: 2b05ec867fad84e24fe73ef7515e3b5849297e79
+      tag: ${{package.version}}
+      expected-commit: 4467df5f9c8242d389f20214f75fecfc4119e8cd
 
   - uses: patch
     with:
-      patches: remove-twitter-artifactory.patch
+      patches: py-backend-cves.patch
+
+  - runs: |
+      go mod edit -dropreplace=k8s.io/kubernetes
+
+  - uses: go/bump
+    with:
+      deps: google.golang.org/protobuf@v1.33.0 github.com/golang/protobuf@v1.5.4 golang.org/x/net@v0.23.0 sigs.k8s.io/controller-runtime@v0.15.3 k8s.io/kubernetes@v1.27.16
+      replaces: k8s.io/api=k8s.io/api@v0.27.13 k8s.io/apimachinery=k8s.io/apimachinery@v0.27.13 k8s.io/client-go=k8s.io/client-go@v0.27.13 k8s.io/code-generator=k8s.io/code-generator@v0.27.13
+
+  - uses: patch
+    with:
+      patches: k8s-method-signature.patch
 
   - uses: patch
     with:
@@ -58,6 +71,23 @@ pipeline:
     with:
       patches: add-samples.patch
 
+  # ERROR: No matching distribution found for kfp==2.0.1
+  - uses: patch
+    with:
+      patches: kfp.patch
+
+  - uses: patch
+    with:
+      patches: upgrade-urllib3.patch
+
+  - uses: patch
+    with:
+      patches: upgrade-urllib3-for-backend.patch
+
+  - uses: patch
+    with:
+      patches: add-overrides.patch
+
 subpackages:
   - range: backends-go-builds
     name: "kubeflow-pipelines-${{range.key}}"
@@ -65,23 +95,6 @@ subpackages:
     pipeline:
       - runs: |
           cd backend
-          # Remediate GHSA-p782-xgp4-8hr8
-          go get golang.org/x/sys@v0.0.0-20220811171246-fbc7d0a398ab
-
-          # Mitigate GHSA-69ch-w2m2-3vjp
-          go get golang.org/x/text@v0.9.0
-          # GHSA-vvpx-j8f3-3w6h
-          go get golang.org/x/net@v0.7.0
-
-          go get golang.org/x/mod@v0.12.0
-
-          # Mitigate GHSA-gwc9-m7rh-j2ww
-          # Mitigate GHSA-8c26-wmh5-6g9v
-          go get golang.org/x/crypto@1baeb1ce4c0b
-
-          # GHSA-p782-xgp4-8hr8
-          go get golang.org/x/sys@v0.8.0
-          go mod tidy
 
           mkdir -p ${{targets.subpkgdir}}/usr/bin
           mkdir -p ${{targets.subpkgdir}}/third_party
@@ -98,6 +111,12 @@ subpackages:
 
           if [ "${name}" == "apiserver" ]; then
             mkdir -p ${{targets.subpkgdir}}/samples
+            # Patch GHSA-248v-346w-9cwc
+            sed -i 's|certifi==2023.7.22|certifi==2024.07.04|g' requirements.txt
+
+            # Patch GHSA-jfmj-5v4g-7637
+            sed -i 's|zipp==3.15.0|zipp==3.19.1|g' requirements.txt
+
             pip3 install --prefer-binary -r requirements.txt --prefix=/usr --root=${{targets.subpkgdir}}
             cp -r ../samples/* ${{targets.subpkgdir}}/samples
             cp ./src/$path/config/sample_config.json ${{targets.subpkgdir}}/samples/sample_config.json
@@ -149,24 +168,41 @@ subpackages:
 
   - name: "kubeflow-pipelines-frontend"
     description: "Kubeflow Pipelines frontend"
+    dependencies:
+      runtime:
+        - nodejs
+        - wget
     pipeline:
-      - runs: |
-          mkdir -p ${{targets.subpkgdir}}/usr/bin
-          cd frontend/
-          npm ci
-          npm run postinstall
-          npm run build
-          cp -r ./server/* ${{targets.subpkgdir}}/usr/bin/
-          cp -r ./build/* ${{targets.subpkgdir}}/usr/bin/
-
-  - name: "kubeflow-pipelines-frontend-compat"
-    description: "Kubeflow Pipelines frontend compatibility package"
-    pipeline:
+      - uses: patch
+        with:
+          patches: GHSA-952p-6rrq-rcjv.patch
       - runs: |
           mkdir -p ${{targets.subpkgdir}}/server
           mkdir -p ${{targets.subpkgdir}}/client
-          ln -sf /usr/bin ${{targets.subpkgdir}}/server
-          ln -sf /usr/bin ${{targets.subpkgdir}}/client
+          cd frontend/
+
+          # Update package lock in server
+          cd server/
+          npm i
+          npm audit fix --package-lock-only --legacy-peer-deps || true
+          cd ../
+
+          # Build frontend
+          npm ci --legacy-peer-deps
+          npm run postinstall
+          npm run build
+          # Copy to output
+          cp -r ./build/* ${{targets.subpkgdir}}/client/
+
+          # Build server
+          cd ./server
+          npm ci
+          npm run build
+          # Remove dev dependencies
+          rm -rf ./node_modules
+          npm ci --production
+          # Copy to output
+          mv ./* ${{targets.subpkgdir}}/server/
 
   - name: "kubeflow-pipelines-metadata-writer"
     description: "Kubeflow Pipelines metadata_writer"
@@ -186,10 +222,10 @@ subpackages:
         - py3-ml-metadata
         - py3-oauthlib
         - py3-protobuf
-        - py3-asn1-modules
-        - py3-asn1
+        - py3-pyasn1-modules
+        - py3-pyasn1
         - py3-dateutil
-        - py3-yaml
+        - py3-pyyaml
         - py3-requests-oauthlib
         - py3-requests
         - py3-rsa
@@ -214,10 +250,22 @@ subpackages:
     pipeline:
       - runs: |
           mkdir -p ${{targets.subpkgdir}}/kfp/metadata_writer
-          ln -s /usr/lib/python3.11/site-packages/metadata_writer.py "${{targets.subpkgdir}}"/kfp/metadata_writer/
+          _py3ver=$(python3 -c 'import sys; print("{}.{}".format(sys.version_info.major, sys.version_info.minor))')
+          ln -s /usr/lib/python"$_py3ver"/site-packages/metadata_writer.py "${{targets.subpkgdir}}"/kfp/metadata_writer/
+
+  - name: kubeflow-pipelines-metadata-envoy-config
+    description: Kubeflow Pipelines Metadata-Envoy Config
+    dependencies:
+      replaces:
+        - envoy-config
+    pipeline:
+      - runs: |
+          mkdir -p ${{targets.subpkgdir}}/etc/envoy/
+          cp metadata-envoy-config.yaml ${{targets.subpkgdir}}/etc/envoy/metadata-envoy.yaml
 
 update:
   enabled: true
+  ignore-regex-patterns:
+    - 'sdk-'
   github:
     identifier: kubeflow/pipelines
-    strip-prefix: "sdk-"

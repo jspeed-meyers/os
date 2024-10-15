@@ -1,43 +1,49 @@
 package:
   name: envoy-ratelimit
   # This project doesn't do releases and everything is commit based.
-  # This corresponds to commit b9796237b9cb028d90424fd0859e10133c510a29
-  version: "0.0_git20231014"
+  # This corresponds to commit 26f28d78ccafaefe120cb698279ab2e8c4fc2c4f
+  version: 0.0_git20240815
   epoch: 1
   description: Go/gRPC service designed to enable generic rate limit scenarios from different types of applications.
   copyright:
     - license: Apache-2.0
 
 vars:
-  commit: b9796237b9cb028d90424fd0859e10133c510a29
+  commit: 26f28d78ccafaefe120cb698279ab2e8c4fc2c4f
+
+environment:
+  contents:
+    packages:
+      - git
 
 pipeline:
-  - uses: fetch
-    with:
-      uri: https://github.com/envoyproxy/ratelimit/archive/${{vars.commit}}.zip
-      expected-sha256: eabb54820149c682351b0425d0a6ae1c62b044689de1ee0146f4230de2083c64
-      extract: false
-
   - runs: |
-      unzip -q ${{vars.commit}}.zip
-      mv ratelimit-${{vars.commit}} ratelimit
-      rm *.zip
+      git clone https://github.com/envoyproxy/ratelimit ratelimit/
+      cd ratelimit/
+      git checkout ${{vars.commit}}
 
   - uses: go/build
     with:
-      packages: ./src/service_cmd
       modroot: ratelimit
-      deps: golang.org/x/net@v0.17.0
       output: ratelimit
+      packages: ./src/service_cmd
+
+test:
+  environment:
+    contents:
+      packages:
+        - go
+  pipeline:
+    - runs: go version -m /usr/bin/ratelimit | grep "vcs.revision=${{vars.commit}}$"
 
 subpackages:
-  - name: "envoy-ratelimit-compat"
-    description: "Compatibility package to place binaries in the location expected by upstream helm charts"
+  - name: envoy-ratelimit-compat
     pipeline:
       - runs: |
           # The helm chart expects the ratelimit binary to be in /bin instead of /usr/bin
           mkdir -p "${{targets.subpkgdir}}"/bin
           ln -sf /usr/bin/ratelimit ${{targets.subpkgdir}}/bin/ratelimit
+    description: Compatibility package to place binaries in the location expected by upstream helm charts
 
 update:
   enabled: false

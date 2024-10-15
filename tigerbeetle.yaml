@@ -1,6 +1,6 @@
 package:
   name: tigerbeetle
-  version: 0.14.152
+  version: 0.16.8
   epoch: 0
   description: "The distributed financial accounting database designed for mission critical safety and performance."
   copyright:
@@ -9,25 +9,20 @@ package:
 environment:
   contents:
     packages:
-      - zig
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
+      - zig
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/tigerbeetledb/tigerbeetle
       tag: ${{package.version}}
-      expected-commit: 3f300f806907b649eac6f7348463dbdf68c1188f
+      expected-commit: a8f5b2b4845fdae6e64a2b5b20b6563195c76f66
 
   - runs: |
-      # cpu values from here: https://github.com/tigerbeetle/tigerbeetle/blob/2ab9fd620e53a6d61cb119e48ece4008bedd777d/tools/docker/Dockerfile#L30C79-L30C92
-      if [ ${{build.arch}} == 'aarch64' ]; then
-        zig build -Doptimize=ReleaseSafe -Dcpu=baseline+aes+neon
-      elif [ ${{build.arch}} == 'x86_64' ]; then
-        zig build -Doptimize=ReleaseSafe -Dcpu=x86_64_v3+aes
-      fi
+      zig build -Drelease
 
       mkdir -p ${{targets.destdir}}/usr/bin
       mv zig-out/bin/tigerbeetle ${{targets.destdir}}/usr/bin/

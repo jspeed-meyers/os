@@ -1,6 +1,6 @@
 package:
   name: harfbuzz
-  version: 8.2.2
+  version: 10.0.1
   epoch: 0
   description: Text shaping library
   copyright:
@@ -9,32 +9,34 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
       - cairo-dev
+      - expat-dev
       - freetype-dev
       - glib-dev
+      - glib-gir
       - gobject-introspection-dev
       - graphite2-dev
       - icu-dev
       - meson
-      - zlib-dev
-      - expat-dev
       - posix-libc-utils
+      - zlib-dev
 
 pipeline:
   - uses: fetch
     with:
-      expected-sha256: e433ad85fbdf57f680be29479b3f964577379aaf319f557eb76569f0ecbc90f3
+      expected-sha256: b2cb13bd351904cb9038f907dc0dee0ae07127061242fe3556b2795c4e9748fc
       uri: https://github.com/harfbuzz/harfbuzz/releases/download/${{package.version}}/harfbuzz-${{package.version}}.tar.xz
 
   - uses: meson/configure
     with:
       opts: |
         --default-library=both \
+        -Dcpp_std=c++17 \
         -Dglib=enabled \
         -Dgobject=enabled \
         -Dgraphite=enabled \
@@ -63,7 +65,7 @@ subpackages:
         - harfbuzz-icu
         - graphite2-dev
         - freetype-dev
-        - glib-2.0
+        - glib-dev~2
     description: harfbuzz dev
 
   - name: harfbuzz-icu
@@ -79,6 +81,19 @@ subpackages:
           mkdir -p "${{targets.subpkgdir}}"/usr
           mv ${{targets.destdir}}/usr/bin ${{targets.subpkgdir}}/usr/
     description: harfbuzz (utilities)
+    test:
+      pipeline:
+        - runs: |
+            hb-info --version
+            hb-info --help
+            hb-ot-shape-closure --version
+            hb-ot-shape-closure --help
+            hb-shape --version
+            hb-shape --help
+            hb-subset --version
+            hb-subset --help
+            hb-view --version
+            hb-view --help
 
 update:
   enabled: true

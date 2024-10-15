@@ -1,28 +1,26 @@
 package:
   name: py3-sphinxcontrib-packages
   version: 1.1.2
-  epoch: 2
+  epoch: 5
   description: This packages contains the Packages sphinx extension, which provides directives to display packages installed on the host machine
   copyright:
-    - license: AGPLv3 or any later version
+    - license: AGPL-3.0-or-later
   dependencies:
     runtime:
       - py3-distro
-      - py3-sphinx
-      - python3
 
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - wolfi-base
-      - busybox
       - build-base
-      - python3
-      - py3-setuptools
-      - py3-pip
-      - py3-installer
+      - busybox
+      - ca-certificates-bundle
       - py3-build
+      - py3-installer
+      - py3-pip
+      - py3-setuptools
+      - python3
+      - wolfi-base
 
 pipeline:
   - uses: git-checkout
@@ -45,3 +43,4 @@ update:
   github:
     identifier: sphinx-contrib/packages
     strip-prefix: v
+    use-tag: true

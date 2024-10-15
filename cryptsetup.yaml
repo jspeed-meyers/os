@@ -1,0 +1,128 @@
+# Generated from https://git.alpinelinux.org/aports/plain/main/cryptsetup/APKBUILD
+package:
+  name: cryptsetup
+  version: 2.7.5
+  epoch: 2
+  description: Userspace setup tool for transparent encryption of block devices using the Linux 2.6 cryptoapi
+  copyright:
+    - license: GPL-2.0-or-later WITH cryptsetup-OpenSSL-exception
+
+var-transforms:
+  - from: ${{package.version}}
+    match: ^(\d+\.\d+)\.\d+$
+    replace: "$1"
+    to: major-minor-version
+
+environment:
+  contents:
+    packages:
+      - argon2-dev
+      - asciidoctor
+      - autoconf
+      - automake
+      - bash
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - coreutils
+      - json-c-dev
+      - libssh
+      - libssh-dev
+      - lvm2-dev
+      - openssl-dev
+      - popt-dev
+      - util-linux-dev
+
+pipeline:
+  - uses: fetch
+    with:
+      expected-sha256: f2c6d22e53435de5d35dc9fdc86600d3e5e2227d27970b07a8e6a0f9f7bd42ac
+      uri: https://www.kernel.org/pub/linux/utils/cryptsetup/v${{vars.major-minor-version}}/cryptsetup-${{package.version}}.tar.gz
+
+  - uses: autoconf/configure
+    with:
+      opts: |
+        --build="$CBUILD" \
+        --host="$CHOST" \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sbindir=/sbin \
+        --disable-static \
+        --enable-libargon2 \
+        --with-crypto_backend=openssl
+
+  - uses: autoconf/make
+
+  - uses: autoconf/make-install
+
+  - uses: strip
+
+subpackages:
+  - name: cryptsetup-dev
+    pipeline:
+      - uses: split/dev
+    test:
+      pipeline:
+        - uses: test/pkgconf
+    dependencies:
+      runtime:
+        - cryptsetup
+        - json-c-dev
+        - lvm2-dev
+        - openssl-dev
+        - util-linux-dev
+    description: cryptsetup dev
+
+  - name: cryptsetup-doc
+    pipeline:
+      - uses: split/manpages
+    description: cryptsetup manpages
+
+update:
+  enabled: true
+  release-monitor:
+    identifier: 13709
+
+test:
+  environment:
+    contents:
+      packages:
+        - util-linux
+  pipeline:
+    - name: "Check cryptsetup version"
+      runs: |
+        cryptsetup --version
+        cryptsetup --help
+        cryptsetup-ssh --version
+        cryptsetup-ssh --help
+        integritysetup --version
+        integritysetup --help
+        veritysetup --version
+        veritysetup --help
+    - name: "Test creating a LUKS container"
+      runs: |
+        # Create a 50MB file to use as a container (increased size)
+        dd if=/dev/zero of=container bs=1M count=50
+
+        # Create a LUKS container
+        echo "testpassword" | cryptsetup luksFormat container
+
+        # Verify the LUKS header
+        cryptsetup luksDump container | grep -q "LUKS header information"
+    - name: "Test LUKS header dump"
+      runs: |
+        # Use the container created in the previous test
+        cryptsetup luksDump container
+    - name: "Test adding a LUKS key"
+      runs: |
+        # Add a new key to the existing container
+        echo -e "testpassword\nnewpassword" | cryptsetup luksAddKey container
+
+        # Verify the new key slot was added
+        cryptsetup luksDump container
+    - name: "Test cryptsetup benchmark"
+      runs: |
+        cryptsetup benchmark --cipher aes-xts
+        cryptsetup benchmark --pbkdf pbkdf2 --hash sha256
+        cryptsetup benchmark --pbkdf argon2i
+        cryptsetup benchmark --pbkdf argon2id

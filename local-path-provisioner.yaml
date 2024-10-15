@@ -1,7 +1,7 @@
 package:
   name: local-path-provisioner
-  version: 0.0.24
-  epoch: 6
+  version: 0.0.30
+  epoch: 0
   description: Dynamically provisioning persistent local storage with Kubernetes
   copyright:
     - license: Apache-2.0
@@ -23,7 +23,7 @@ pipeline:
     with:
       repository: https://github.com/rancher/local-path-provisioner
       tag: v${{package.version}}
-      expected-commit: 97e0501428f0a5bcac49ecd0bfdb051797c4a6c5
+      expected-commit: c4fdcada94c2e632cd7d9231e73406d554eb40e2
 
   - uses: go/build
     with:
@@ -38,3 +38,13 @@ update:
   github:
     identifier: rancher/local-path-provisioner
     strip-prefix: v
+
+test:
+  pipeline:
+    - runs: |
+        set +e
+        output=$(local-path-provisioner --debug start 2>&1)
+        set -e
+        echo "$output" | grep "unable to get client config" # Kubeconfig will be provided on runtime
+        local-path-provisioner --version
+        local-path-provisioner --help

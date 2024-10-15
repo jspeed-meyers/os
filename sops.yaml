@@ -1,6 +1,6 @@
 package:
   name: sops
-  version: 3.8.1
+  version: 3.9.1
   epoch: 0
   description: Simple and flexible tool for managing secrets
   copyright:
@@ -18,7 +18,7 @@ pipeline:
     with:
       repository: https://github.com/getsops/sops
       tag: v${{package.version}}
-      expected-commit: b6d3c9700d88e0c9348f3ec7cd2f10ce4a4b3ee1
+      expected-commit: d50fda248047372c79368508e1df479970a52cda
 
   - uses: go/build
     with:
@@ -33,3 +33,27 @@ update:
   github:
     identifier: getsops/sops
     strip-prefix: v
+
+test:
+  environment:
+    contents:
+      packages:
+        - gpg
+        - gpg-agent
+  pipeline:
+    - uses: git-checkout
+      with:
+        repository: https://github.com/getsops/sops
+        tag: v${{package.version}}
+        expected-commit: d50fda248047372c79368508e1df479970a52cda
+    - name: version check
+      runs: |
+        sops --version
+        sops --help
+    - name: decrypt
+      runs: |
+        gpg-agent --daemon
+        gpg --import pgp/sops_functional_tests_key.asc
+
+        cd examples/all_in_one
+        sops decrypt config/secret.enc.json

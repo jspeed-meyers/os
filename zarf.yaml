@@ -1,6 +1,6 @@
 package:
   name: zarf
-  version: 0.30.1
+  version: 0.41.0
   epoch: 0
   description: DevSecOps for Air Gap & Limited-Connection Systems.
   copyright:
@@ -9,25 +9,38 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - busybox
       - bash
+      - busybox
+      - ca-certificates-bundle
       - go
       - nodejs
 
 pipeline:
   - uses: git-checkout
     with:
-      repository: https://github.com/defenseunicorns/zarf
-      expected-commit: 785c5a0f7cf3ce178eeb19b2395ebf5131b043e3
+      expected-commit: e1a99f67636ac40f8f2d1a260f5a4692bcfeebd8
+      repository: https://github.com/zarf-dev/zarf
       tag: v${{package.version}}
 
-  - runs: |
-      mkdir -p ${{targets.destdir}}/usr/bin/
-      make build-ui
-      go build -o ${{targets.destdir}}/usr/bin/zarf -ldflags="-s -w -X 'github.com/defenseunicorns/zarf/src/config.CLIVersion=$(git describe --tags)'" .
+  - uses: go/bump
+    with:
+      deps: github.com/mholt/archiver/v3@v3.5.2 github.com/theupdateframework/go-tuf/v2@v2.0.1
+      replaces: github.com/mholt/archiver/v3=github.com/anchore/archiver/v3@v3.5.2
+      show-diff: true
+
+  - uses: go/build
+    with:
+      ldflags: -s -w -X 'github.com/zarf-dev/zarf/src/config.CLIVersion=v${{package.version}}'
+      output: zarf
+      packages: .
 
   - uses: strip
+
+test:
+  pipeline:
+    - runs: |
+        zarf version || grep ${{package.version}}
+        zarf --help
 
 update:
   enabled: true

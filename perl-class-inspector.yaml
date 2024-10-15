@@ -2,7 +2,7 @@
 package:
   name: perl-class-inspector
   version: "1.36"
-  epoch: 1
+  epoch: 2
   description: Class::Inspector perl module
   copyright:
     - license: GPL-1.0-or-later OR Artistic-1.0-Perl
@@ -14,13 +14,13 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - perl-module-install
       - perl
+      - perl-module-install
 
 pipeline:
   - uses: fetch

@@ -1,0 +1,66 @@
+package:
+  name: helm-operator
+  version: 1.37.0
+  epoch: 0
+  description: open source toolkit to manage Kubernetes native applications.
+  copyright:
+    - license: Apache-2.0
+
+environment:
+  contents:
+    packages:
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - go
+
+pipeline:
+  - uses: git-checkout
+    with:
+      expected-commit: 819984d4c1a51c8ff2ef6c23944554148ace0752
+      repository: https://github.com/operator-framework/operator-sdk
+      tag: v${{package.version}}
+
+  - runs: |
+      make build/operator-sdk build/helm-operator
+      mkdir -p "${{targets.destdir}}"/usr/bin/
+      cp build/helm-operator "${{targets.destdir}}"/usr/bin/
+
+  - uses: strip
+
+update:
+  enabled: true
+  github:
+    identifier: operator-framework/operator-sdk
+    strip-prefix: v
+
+test:
+  environment:
+    contents:
+      packages:
+        - busybox
+        - git
+        - curl
+        - kustomize
+  pipeline:
+    - uses: test/kwok/cluster
+      runs: |
+        helm-operator version
+        helm-operator --help
+    - name: Fetch the testdata from the source repo
+      runs: |
+        git clone --depth=1 https://github.com/operator-framework/operator-sdk.git
+    - name: Run a simple test of the operator against the testdata
+      working-directory: operator-sdk/testdata/helm/memcached-operator
+      runs: |
+        kustomize build config/crd | kubectl apply -f -
+
+        # Start the operator
+        helm-operator run &
+        sleep 5
+
+        # Deploy the CR and check that we reconcile some pods
+        kustomize build config/samples | kubectl apply -f -
+
+        sleep 5
+        kubectl wait --for=condition=Ready pods --all -n default

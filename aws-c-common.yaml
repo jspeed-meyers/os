@@ -1,6 +1,6 @@
 package:
   name: aws-c-common
-  version: 0.9.4
+  version: 0.9.29
   epoch: 0
   description: Core c99 package for AWS SDK for C including cross-platform primitives, configuration, data structures, and error handling
   copyright:
@@ -9,18 +9,20 @@ package:
 environment:
   contents:
     packages:
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
       - cmake
-      - samurai
+      - openssf-compiler-options
       - python3-dev
+      - samurai
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 63cdaf758f486eb83e93fc8e5508522c200f62acd034a7f62409a6dc78031955
-      uri: https://github.com/awslabs/aws-c-common/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: f8c5d8e5134fa97955351a44f16b84f96de24045
+      repository: https://github.com/awslabs/aws-c-common
+      tag: v${{package.version}}
 
   - runs: |
       if [ "$CBUILD" != "$CHOST" ]; then

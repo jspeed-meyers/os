@@ -1,43 +1,86 @@
-# Generated from https://pypi.org/project/yarl/
 package:
   name: py3-yarl
-  version: 1.9.2
-  epoch: 2
+  version: 1.15.2
+  epoch: 0
   description: Yet another URL library
   copyright:
     - license: Apache-2.0
   dependencies:
-    runtime:
-      - py3-multidict
-      - py3-idna
-      - py3-typing-extensions
-      - python3
+    provider-priority: 0
+
+vars:
+  pypi-package: yarl
+
+data:
+  - name: py-versions
+    items:
+      3.10: '310'
+      3.11: '311'
+      3.12: '312'
+      3.13: '300'
 
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - wolfi-base
-      - busybox
       - build-base
-      - python3-dev
-      - py3-setuptools
+      - busybox
+      - ca-certificates-bundle
+      - py3-supported-cython
+      - py3-supported-expandvars
+      - py3-supported-pip
+      - py3-supported-python-dev
+      - wolfi-base
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 04ab9d4b9f587c06d801c2abfe9317b77cdf996c65a90d5e84ecc45010823571
-      uri: https://files.pythonhosted.org/packages/5f/3f/04b3c5e57844fb9c034b09c5cb6d2b43de5d64a093c30529fd233e16cf09/yarl-${{package.version}}.tar.gz
+      expected-commit: 33294bf084d2dde1ac1e8133b0125e1f142a8274
+      repository: https://github.com/aio-libs/yarl
+      tag: v${{package.version}}
 
-  - name: Python Build
-    runs: python setup.py build
+subpackages:
+  - range: py-versions
+    name: py${{range.key}}-${{vars.pypi-package}}
+    description: ${{vars.pypi-package}} installed for python${{range.key}}
+    dependencies:
+      provider-priority: ${{range.value}}
+      provides:
+        - py3-${{vars.pypi-package}}
+      runtime:
+        - py${{range.key}}-idna
+        - py${{range.key}}-multidict
+        - py${{range.key}}-propcache
+    pipeline:
+      - uses: py/pip-build-install
+        with:
+          python: python${{range.key}}
+      - uses: strip
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python${{range.key}}
+            import: ${{vars.pypi-package}}
 
-  - name: Python Install
-    runs: python setup.py install --prefix=/usr --root="${{targets.destdir}}"
+  - name: py3-supported-${{vars.pypi-package}}
+    description: meta package providing ${{vars.pypi-package}} for supported python versions.
+    dependencies:
+      runtime:
+        - py3.10-${{vars.pypi-package}}
+        - py3.11-${{vars.pypi-package}}
+        - py3.12-${{vars.pypi-package}}
+        - py3.13-${{vars.pypi-package}}
 
-  - uses: strip
+test:
+  pipeline:
+    - uses: python/import
+      with:
+        import: ${{vars.pypi-package}}
 
 update:
   enabled: true
-  release-monitor:
-    identifier: 12895
+  github:
+    identifier: aio-libs/yarl
+    strip-prefix: v
+    tag-filter: v
+    use-tag: true

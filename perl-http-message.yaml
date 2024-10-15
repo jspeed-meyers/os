@@ -1,6 +1,6 @@
 package:
   name: perl-http-message
-  version: "6.45"
+  version: "7.00"
   epoch: 0
   description: HTTP style message
   copyright:
@@ -8,33 +8,34 @@ package:
   dependencies:
     runtime:
       - perl-clone
-      - perl-http-date
-      - perl-uri
-      - perl-io-html
       - perl-encode-locale
+      - perl-http-date
+      - perl-io-html
       - perl-lwp-mediatypes
+      - perl-uri
 
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
       - perl
       - perl-clone
-      - perl-http-date
-      - perl-uri
-      - perl-io-html
       - perl-encode-locale
+      - perl-http-date
+      - perl-io-html
       - perl-lwp-mediatypes
+      - perl-uri
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 01cb8406612a3f738842d1e97313ae4d874870d1b8d6d66331f16000943d4cbe
-      uri: https://cpan.metacpan.org/authors/id/O/OA/OALDERS/HTTP-Message-${{package.version}}.tar.gz
+      repository: https://github.com/libwww-perl/HTTP-Message.git
+      tag: v${{package.version}}
+      expected-commit: 5d35b57d43cb0c112c4e0ee9d6fac49ac8f7971c
 
   - uses: perl/make
 
@@ -54,5 +55,7 @@ subpackages:
 
 update:
   enabled: true
-  release-monitor:
-    identifier: 2977
+  github:
+    identifier: libwww-perl/HTTP-Message
+    use-tag: true
+    strip-prefix: v

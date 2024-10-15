@@ -1,48 +1,55 @@
 package:
   name: mesa
-  version: 23.1.4
+  version: 24.2.4
   epoch: 1
   description: Mesa DRI OpenGL library
   copyright:
     - license: MIT AND SGI-B-2.0 AND BSL-1.0
 
+vars:
+  llvm-ver: 19
+
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - bison
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - libdrm-dev
-      - libxext-dev
-      - libxdamage-dev
-      - libxcb-dev
-      - libxshmfence-dev
-      - bison
+      - elfutils-dev
       - eudev-dev
       - expat-dev
       - findutils
       - flex
       - gettext
-      - elfutils-dev
       - glslang-dev
+      - libdrm-dev
       - libtool
-      - libxfixes-dev
-      - libva-dev
       - libva
+      - libva-dev
       - libvdpau-dev
       - libx11-dev
+      - libxcb-dev
+      - libxdamage-dev
+      - libxext-dev
+      - libxfixes-dev
       - libxml2-dev
-      - libxrandr-dev
       - libxrandr
+      - libxrandr-dev
       - libxrender
       - libxrender-dev
+      - libxshmfence-dev
       - libxxf86vm-dev
-      - llvm16
-      - llvm16-dev
+      - llvm-${{vars.llvm-ver}}
+      - llvm-${{vars.llvm-ver}}-dev
       - meson
       - py3-mako
+      - py3-markupsafe
+      - py3-pygments
+      - py3-pyyaml
+      - py3-setuptools
       - python3
       - vulkan-loader
       - wayland-dev
@@ -50,14 +57,13 @@ environment:
       - xorgproto
       - zlib-dev
       - zstd-dev
-      - py3-pygments
-      - py3-markupsafe
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 7261a17fb94867e3dc5a90d8a1f100fa04b0cbbde51d25302c0872b5e9a10959
-      uri: https://mesa.freedesktop.org/archive/mesa-${{package.version}}.tar.xz
+      repository: https://gitlab.freedesktop.org/mesa/mesa
+      tag: mesa-${{package.version}}
+      expected-commit: e2ab51c49fbaa6275779198614a17b7a8bd7902a
 
   - runs: |
       export CFLAGS="$CFLAGS -O2 -g1"
@@ -69,7 +75,6 @@ pipeline:
       _vulkan_drivers="amd,swrast"
       _vulkan_layers="device-select,overlay"
 
-      PATH="$PATH:/usr/lib/llvm$_llvmver/bin" \
       meson \
         --prefix=/usr \
         -Ddri-drivers-path=$_dri_driverdir \
@@ -94,7 +99,7 @@ pipeline:
         -Dgallium-nine=true \
         -Dvideo-codecs=h264dec,h264enc,h265dec,h265enc \
         -Db_ndebug=true \
-        -Db_lto=true \
+        -Db_lto=false \
         . output
 
       meson configure --no-pager output
@@ -115,6 +120,7 @@ data:
       osmesa: libOSMesa
       gbm: libgbm
       libd3dadapter9: d3d/d3dadapter9
+      libgallium: libgallium-${{package.version}}
 
 subpackages:
   - range: libs
@@ -130,7 +136,34 @@ subpackages:
       - uses: split/dev
     description: mesa dev
 
+test:
+  environment:
+    contents:
+      packages:
+        - gcc
+        - libx11-dev
+        - libxext-dev
+        - mesa-dev
+        - wget
+        - glibc-dev
+        - mesa-gl
+  pipeline:
+    - name: Compile and run glxgears
+      runs: |
+        # Download the glxgears.c source file
+        wget https://gitlab.freedesktop.org/mesa/demos/-/raw/878cd7fb84b7712d29e5d1b38355ed9c5899a403/src/xdemos/glxgears.c
+
+        # Verify the checksum of the downloaded file
+        echo "af7927d14bd9cc989347ad0c874b35c4bfbbe9f408956868b1c5564391e21eed  glxgears.c" | sha256sum -c -
+
+        # Compile the glxgears.c source file
+        gcc glxgears.c -o glxgears -lGL -lX11 -lXext -lm
+
 update:
   enabled: true
-  release-monitor:
-    identifier: 1970
+  ignore-regex-patterns:
+    - "_"
+    - "-"
+  git:
+    strip-prefix: mesa-
+    tag-filter-prefix: mesa-

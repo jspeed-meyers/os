@@ -1,0 +1,71 @@
+# Generated from https://git.alpinelinux.org/aports/plain/community/proj/APKBUILD
+package:
+  name: proj
+  version: 9.5.0
+  epoch: 1
+  description: PROJ coordinate transformation software library
+  copyright:
+    - license: MIT
+
+environment:
+  contents:
+    packages:
+      - autoconf
+      - automake
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - cmake
+      - curl-dev
+      - nlohmann-json
+      - samurai
+      - sqlite
+      - sqlite-dev
+      - tiff-dev
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/OSGeo/PROJ
+      tag: ${{package.version}}
+      expected-commit: 0a407325fbb5bf42407a7dc5d4f948be9707e302
+
+  - uses: cmake/configure
+
+  - uses: cmake/build
+
+  - uses: cmake/install
+
+  - uses: strip
+
+subpackages:
+  - name: proj-doc
+    pipeline:
+      - uses: split/manpages
+    description: proj manpages
+
+  - name: proj-util
+    pipeline:
+      - runs: |
+          mkdir -p ${{targets.subpkgdir}}/usr/bin/
+          mv ${{targets.destdir}}/usr/bin/* ${{targets.subpkgdir}}/usr/bin/
+    test:
+      pipeline:
+        - runs: |
+            cct --version
+            cct --help
+            gie --version
+            gie --help
+
+  - name: proj-dev
+    pipeline:
+      - uses: split/dev
+    dependencies:
+      runtime:
+        - proj
+    description: proj dev
+
+update:
+  enabled: true
+  github:
+    identifier: OSGeo/PROJ

@@ -1,13 +1,11 @@
 package:
   name: php-8.2-pecl-mongodb
-  version: 1.16.2
-  epoch: 2
+  version: 1.20.0
+  epoch: 0
   description: "PHP 8.2 MongoDB driver - PECL"
   copyright:
     - license: PHP-3.01
   dependencies:
-    provides:
-      - php-pecl-mongodb=${{package.full-version}}
     runtime:
       - php-8.2
 
@@ -34,7 +32,7 @@ pipeline:
   - uses: fetch
     with:
       uri: https://pecl.php.net/get/mongodb-${{package.version}}.tgz
-      expected-sha512: 3c81882c609b09cde534315aa4b1fe3c47e18e4ed26a940bf60a6bdbf4e53b2204d8e4e113a9b0a3469b60793ead9f8dff703920b86280e78448e07d6535a277
+      expected-sha512: 715b40616c9c61294dc2947ddbc1b2bf2ecac02654fcbcdec5394acf1e44365f1a96f15d3459b57e50fa2f125f44d406d7bdb6306c13b9ffa892686c4cdc3cee
 
   - name: phpize and configure
     runs: |
@@ -47,7 +45,7 @@ pipeline:
     runs: |
       make INSTALL_ROOT="${{targets.destdir}}" install
       install -d ${{targets.destdir}}/etc/php/conf.d
-      echo "extension=mongodb" > ${{targets.destdir}}/etc/php/conf.d/mongodb.ini
+      echo "extension=mongodb.so" > ${{targets.destdir}}/etc/php/conf.d/mongodb.ini
 
   - uses: strip
 

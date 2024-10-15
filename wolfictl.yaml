@@ -1,28 +1,31 @@
 package:
   name: wolfictl
-  version: 0.6.0
+  version: 0.24.2
   epoch: 0
   description: Helper CLI for managing Wolfi
   copyright:
     - license: Apache-2.0
-
-environment:
-  environment:
-    CGO_ENABLED: "0"
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/wolfi-dev/wolfictl
       tag: v${{package.version}}
-      expected-commit: a5f566017bb1c4c574ea8cdbabe6c3cb733c939a
-      destination: wolfictl
+      expected-commit: fd07d91f47abf575fd54d7662be69086d66a88d8
 
   - uses: go/build
     with:
       packages: .
       output: wolfictl
-      modroot: wolfictl
+
+  - uses: strip
+
+test:
+  pipeline:
+    - name: Verify wolfictl
+      runs: |
+        wolfictl version
+        wolfictl --help
 
 update:
   enabled: true

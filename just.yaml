@@ -1,30 +1,31 @@
 package:
   name: just
-  version: 1.15.0
+  version: 1.36.0
   epoch: 0
   description: "just is a handy way to save and run project-specific commands."
   copyright:
-    - license: CC0
+    - license: CC0-1.0
 
 environment:
   contents:
     packages:
-      - rust
-      - wolfi-base
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
+      - cargo-auditable
+      - rust
+      - wolfi-base
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/casey/just
-      expected-commit: b31be27f2da63684c75e7dad7e89461ebba78944
+      expected-commit: 66ccef79420ed1fe59efb067e5f85b5fe88d7484
       tag: ${{package.version}}
 
   - name: Configure and build
     runs: |
-      cargo build --release
+      cargo auditable build --release
       mkdir -p ${{targets.destdir}}/usr/bin/
       mv target/release/just ${{targets.destdir}}/usr/bin/
 
@@ -34,3 +35,15 @@ update:
   enabled: true
   github:
     identifier: casey/just
+
+test:
+  pipeline:
+    - name: Version Check
+      runs: |
+        just --version
+        just --help
+    - name: Basic Functionality Test
+      runs: |
+        echo -e "default:\n  touch it-worked" > justfile
+        just
+        [ -f it-worked ]

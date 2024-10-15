@@ -1,6 +1,6 @@
 package:
   name: ruby3.2-net-imap
-  version: 0.3.7
+  version: 0.4.17
   epoch: 1
   description: Ruby client api for Internet Message Access Protocol
   copyright:
@@ -14,18 +14,19 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - ruby-3.2
-      - ruby-3.2-dev
       - build-base
       - busybox
+      - ca-certificates-bundle
       - git
+      - ruby-3.2
+      - ruby-3.2-dev
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: a657e970febceefaa4be5804ae2adaa805f506eac49409629fcb9c4cb93e137d
-      uri: https://github.com/ruby/net-imap/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: 8484205f4bc8254115f73abbabc5bab558d5489e
+      repository: https://github.com/ruby/net-imap
+      tag: v${{package.version}}
 
   - uses: ruby/build
     with:
@@ -46,3 +47,4 @@ update:
   github:
     identifier: ruby/net-imap
     strip-prefix: v
+    use-tag: true

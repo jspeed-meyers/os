@@ -1,6 +1,6 @@
 package:
   name: rustls-ffi
-  version: 0.11.0
+  version: 0.14.0
   epoch: 0
   description: "C-to-rustls bindings"
   copyright:
@@ -9,26 +9,35 @@ package:
 environment:
   contents:
     packages:
-      - rust
-      - libLLVM-15
-      - wolfi-base
+      - bash
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - bash
+      - cargo-c
+      - rust
+      - wolfi-base
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/rustls/rustls-ffi
       tag: v${{package.version}}
-      expected-commit: 7b1839daca81b0955a36e4b7e39b70ee73f8275d
+      expected-commit: 326bb76f64db954a92663e87fcf620f2a615ec99
 
-  - uses: autoconf/make
-
-  - uses: autoconf/make-install
+  - runs: |
+      cargo capi build --release
+      cargo capi install --prefix=/usr --destdir "${{targets.contextdir}}"
 
   - uses: strip
+
+subpackages:
+  - name: ${{package.name}}-dev
+    description: "${{package.name}} development headers"
+    pipeline:
+      - uses: split/dev
+    dependencies:
+      runtime:
+        - ${{package.name}}
 
 update:
   enabled: true

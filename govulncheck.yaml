@@ -1,16 +1,33 @@
 package:
   name: govulncheck
-  version: 1.0.0
-  epoch: 4
+  version: 1.0.2
+  epoch: 7
   description: Go Vulnerability Management
   copyright:
     - license: BSD-3-Clause
 
 pipeline:
-  - uses: go/install
+  - uses: git-checkout
     with:
-      package: golang.org/x/vuln/cmd/govulncheck@v${{package.version}}
+      repository: https://go.googlesource.com/vuln
+      tag: v${{package.version}}
+      expected-commit: e313109e39439a94eee0185a019b909e74ba6665
 
-# This isn't on GitHub and it's not in release-monitor
+  - uses: go/build
+    with:
+      output: govulncheck
+      packages: ./cmd/govulncheck
+
 update:
   enabled: false
+  exclude-reason: >
+    This isn't on GitHub and it's not in release-monitor
+
+
+test:
+  pipeline:
+    - name: version check
+      runs: |
+        govulncheck -version
+        govulncheck --version
+        govulncheck --help

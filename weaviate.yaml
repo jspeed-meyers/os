@@ -1,6 +1,6 @@
 package:
   name: weaviate
-  version: 1.21.7
+  version: 1.26.6
   epoch: 0
   description: Weaviate is an open source vector database that stores both objects and vectors, allowing for combining vector search with structured filtering with the fault-tolerance and scalability of a cloud-native database, all accessible through GraphQL, REST, and various language clients.
   copyright:
@@ -16,24 +16,45 @@ environment:
 pipeline:
   - uses: git-checkout
     with:
+      expected-commit: ab0312d5d0fdc39a7fc7bc99bd7c93a31bc6771c
       repository: https://github.com/weaviate/weaviate
       tag: v${{package.version}}
-      expected-commit: ffb9a28740ff8880f08866b52b1e589c0b9d60f9
 
   - runs: |
-      mkdir -p ${{targets.destdir}}/bin
+      mkdir -p ${{targets.contextdir}}/bin
       GITHASH=$(git rev-parse --short HEAD)
-      # Mitigate CVE-2023-39325 and CVE-2023-3978
-      go get golang.org/x/net@v0.17.0
-      go mod tidy
       go build \
         -ldflags '-w -extldflags "-static" -X github.com/weaviate/weaviate/usecases/config.GitHash='"$GITHASH"'' \
-        -o ${{targets.destdir}}/bin/weaviate ./cmd/weaviate-server
+        -o ${{targets.contextdir}}/bin/weaviate ./cmd/weaviate-server
 
   - uses: strip
 
+test:
+  environment:
+    contents:
+      packages:
+        - curl
+        - busybox
+  pipeline:
+    - runs: |
+        weaviate --host 0.0.0.0 --port 8080 --scheme http &
+        sleep 5 # wait for weaviate to start
+        WEAVITE_URL="http://127.0.0.1:8080"
+        # Check the status using the HTTP API
+        output=$(curl -s "$WEAVITE_URL/v1/meta")
+        # Check if the output contains expected status information
+        if echo "$output" | grep -q '"version":'; then
+          echo "weaviate server is running."
+          exit 0
+        else
+          echo "Failed to connect to weaviate server."
+          exit 1
+        fi
+        weaviate --help
+
 update:
   enabled: true
+  manual: false
   github:
     identifier: weaviate/weaviate
     strip-prefix: v

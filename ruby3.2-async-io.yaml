@@ -1,6 +1,6 @@
 package:
   name: ruby3.2-async-io
-  version: 1.36.0
+  version: 1.43.2
   epoch: 1
   description: Provides support for asynchonous TCP, UDP, UNIX and SSL sockets.
   copyright:
@@ -13,21 +13,22 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - ruby-3.2
-      - ruby-3.2-dev
       - build-base
       - busybox
+      - ca-certificates-bundle
       - git
+      - ruby-3.2
+      - ruby-3.2-dev
 
 vars:
   gem: async-io
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 47a95e23845cf3fb0f8571ed088cc70698f265a58adca221c4b5d922726bb1c1
-      uri: https://github.com/socketry/async-io/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: 268c0b564e9904ad49a4d8d1435279003721c297
+      repository: https://github.com/socketry/async-io
+      tag: v${{package.version}}
 
   - uses: patch
     with:

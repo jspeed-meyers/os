@@ -2,7 +2,7 @@
 package:
   name: perl-class-data-inheritable
   version: "0.09"
-  epoch: 1
+  epoch: 2
   description: Inheritable, overridable class data
   copyright:
     - license: GPL-1.0-or-later OR Artistic-1.0-Perl
@@ -13,11 +13,11 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
       - perl
 
 pipeline:

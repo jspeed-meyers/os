@@ -1,6 +1,6 @@
 package:
   name: aws-c-http
-  version: 0.7.13
+  version: 0.8.10
   epoch: 0
   description: AWS C99 implementation of the HTTP/1.1 and HTTP/2 specifications
   copyright:
@@ -17,14 +17,16 @@ environment:
       - busybox
       - ca-certificates-bundle
       - cmake
+      - openssf-compiler-options
       - s2n-tls-dev
       - samurai
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 696b1d0c3add8d6bccae74157cb363ea37ff644226a163038353e44b9ad1f2fc
-      uri: https://github.com/awslabs/aws-c-http/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: 6068653e1d582bd8e7d1c9f81f86beaf10444e3d
+      repository: https://github.com/awslabs/aws-c-http
+      tag: v${{package.version}}
 
   - runs: |
       if [ "$CBUILD" != "$CHOST" ]; then

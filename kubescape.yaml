@@ -1,36 +1,38 @@
 package:
   name: kubescape
-  version: 2.9.2
+  version: 3.0.18
   epoch: 0
-  description: "Kubescape is an open-source Kubernetes security platform for your IDE, CI/CD pipelines, and clusters. It includes risk analysis, security, compliance, and misconfiguration scanning, saving Kubernetes users and administrators precious time, effort, and resources."
+  description: Kubescape is an open-source Kubernetes security platform for your IDE, CI/CD pipelines, and clusters. It includes risk analysis, security, compliance, and misconfiguration scanning, saving Kubernetes users and administrators precious time, effort, and resources.
   copyright:
     - license: Apache-2.0 AND MIT
 
 environment:
   contents:
     packages:
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - python3
-      - go
-      - git
       - cmake
+      - git
+      - go
+      - openssf-compiler-options
 
 pipeline:
   - uses: git-checkout
     with:
+      expected-commit: 79c2dd9a2b1f17ecd7331c437aeece2e938c653d
+      recurse-submodules: "true"
       repository: https://github.com/kubescape/kubescape
       tag: v${{package.version}}
-      expected-commit: e4110837c70807de7c37cca69f422f5951249d64
-      destination: kubescape
+
+  - uses: go/bump
+    with:
+      deps: github.com/mholt/archiver/v3@v3.5.1
+      replaces: github.com/mholt/archiver/v3=github.com/anchore/archiver/v3@v3.5.2
 
   - runs: |
-      cd kubescape
-      export CGO_ENABLED=1
-      make libgit2
-      python3 --version && python3 build.py
-      install -Dm755  ./build/kubescape-ubuntu-latest ${{targets.destdir}}/usr/bin/kubescape
+      make build
+      install -Dm755 ./kubescape ${{targets.destdir}}/usr/bin/kubescape
 
   - uses: strip
 
@@ -39,3 +41,13 @@ update:
   github:
     identifier: kubescape/kubescape
     strip-prefix: v
+
+test:
+  pipeline:
+    - runs: |
+        kubescape version
+        kubescape --help
+    - uses: test/kwok/cluster
+    - name: Verify kubescape scan
+      runs: |
+        kubescape scan | grep -qi "Compliance Score"

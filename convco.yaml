@@ -1,0 +1,48 @@
+package:
+  name: convco
+  version: 0.6.1
+  epoch: 0
+  description: A Conventional commit cli
+  copyright:
+    - license: MIT
+
+environment:
+  contents:
+    packages:
+      - build-base
+      - busybox
+      - ca-certificates
+      - cargo-auditable
+      - cmake
+      - openssf-compiler-options
+      - rust
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/convco/convco
+      tag: v${{package.version}}
+      expected-commit: 67e81ea064499abfa06b5abeb6b9475cf8d00dd4
+
+  - runs: |
+      cargo auditable build --release
+      mkdir -p "${{targets.contextdir}}"/usr/bin
+      mv ./target/release/convco "${{targets.contextdir}}"/usr/bin/convco
+
+  - uses: strip
+
+update:
+  enabled: true
+  github:
+    identifier: convco/convco
+    strip-prefix: v
+
+test:
+  environment:
+    contents:
+      packages:
+        - busybox
+  pipeline:
+    - runs: |
+        convco --version | grep ${{package.version}}
+        convco --help

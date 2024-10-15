@@ -2,7 +2,7 @@
 package:
   name: perl-json-xs
   version: "4.03"
-  epoch: 1
+  epoch: 2
   description: Perl module for JSON-XS
   copyright:
     - license: GPL-1.0-or-later OR Artistic-1.0-Perl
@@ -10,16 +10,16 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - perl-dev
-      - perl-canary-stability
       - perl
-      - perl-types-serialiser
+      - perl-canary-stability
       - perl-common-sense
+      - perl-dev
+      - perl-types-serialiser
 
 pipeline:
   - uses: fetch

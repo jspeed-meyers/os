@@ -1,32 +1,39 @@
 package:
   name: ruby3.2-io-event
-  version: 1.3.2
-  epoch: 1
+  version: 1.7.1
+  epoch: 0
   description: An event loop.
   copyright:
     - license: MIT
   dependencies:
     runtime:
-      - ruby-3.2
+      - ruby-${{vars.ruby-version}}
+
+var-transforms:
+  - from: ${{package.name}}
+    match: ruby(\d+\.\d+)-.*$
+    replace: "$1"
+    to: ruby-version
 
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - ruby-3.2
-      - ruby-3.2-dev
       - build-base
       - busybox
+      - ca-certificates-bundle
       - git
+      - ruby-${{vars.ruby-version}}
+      - ruby-${{vars.ruby-version}}-dev
 
 vars:
   gem: io-event
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 01ece52c6f03ad34df575be61a88b65ab76d2cc0be455e6a4d645888fd875659
-      uri: https://github.com/socketry/io-event/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: 50f15b40eac9f534a6e1c7d210255efeed356396
+      repository: https://github.com/socketry/io-event
+      tag: v${{package.version}}
 
   - uses: patch
     with:
@@ -48,3 +55,30 @@ update:
   github:
     identifier: socketry/io-event
     strip-prefix: v
+
+test:
+  environment:
+    contents:
+      packages:
+        - ruby-${{vars.ruby-version}}
+  pipeline:
+    - name: Verify Gem Installation
+      runs: |
+        # Check that the gem is installed
+        gem list | grep 'io-event'
+        if [ $? -ne 0 ]; then
+          echo "Test failed: io-event gem is not installed."
+          exit 1
+        else
+          echo "Test passed: io-event gem is installed."
+        fi
+    - name: Test Requiring the Gem
+      runs: |
+        # Try to require the gem in Ruby
+        ruby -e "require 'io/event'; puts 'io-event gem loaded successfully'"
+        if [ $? -ne 0 ]; then
+          echo "Test failed: Unable to require io-event gem."
+          exit 1
+        else
+          echo "Test passed: io-event gem can be required."
+        fi

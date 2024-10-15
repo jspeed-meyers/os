@@ -1,0 +1,45 @@
+package:
+  name: nri-discovery-kubernetes
+  version: 1.9.3
+  epoch: 0
+  description: New Relic Kubernetes Auto-Discovery
+  copyright:
+    - license: Apache-2.0
+
+environment:
+  contents:
+    packages:
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - go
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/newrelic/nri-discovery-kubernetes
+      expected-commit: 622b534f71cbf236c2dd8f5db25abaebf001b9dc
+      tag: v${{package.version}}
+
+  - uses: go/build
+    with:
+      modroot: .
+      packages: ./cmd/discovery/
+      output: nri-discovery-kubernetes
+      ldflags: -s -w
+
+  - uses: strip
+
+subpackages:
+  - name: ${{package.name}}-compat
+    description: "Compatibility package to place binaries in the location expected by newrelic-infrastructure-bundle"
+    pipeline:
+      - runs: |
+          mkdir -p ${{targets.subpkgdir}}/var/db/newrelic-infra
+          ln -sf /usr/bin/${{package.name}} ${{targets.subpkgdir}}/var/db/newrelic-infra/${{package.name}}
+
+update:
+  enabled: true
+  github:
+    identifier: newrelic/nri-discovery-kubernetes
+    strip-prefix: v

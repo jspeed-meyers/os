@@ -1,0 +1,48 @@
+package:
+  name: kubecolor
+  version: 0.4.0
+  epoch: 1
+  description: Colorize your kubectl output
+  copyright:
+    - license: MIT
+  dependencies:
+    runtime:
+      - kubectl
+
+environment:
+  contents:
+    packages:
+      - busybox
+      - ca-certificates-bundle
+      - go
+  environment:
+    CGO_ENABLED: "0"
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/kubecolor/kubecolor
+      tag: v${{package.version}}
+      expected-commit: d8bd590c997ec98923c2f6ece481acb50453b925
+
+  - uses: go/build
+    with:
+      packages: .
+      ldflags: |
+        -s -w
+        -X main.version=${{package.version}}
+      output: kubecolor
+
+  - uses: strip
+
+update:
+  enabled: true
+  github:
+    identifier: kubecolor/kubecolor
+    strip-prefix: v
+
+test:
+  pipeline:
+    - runs: |
+        kubecolor version --client=true
+        kubecolor --help

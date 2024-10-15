@@ -1,27 +1,31 @@
 package:
   name: llvm15
   version: 15.0.7
-  epoch: 5
+  epoch: 7
   description: "low-level virtual machine - core frameworks"
   copyright:
     - license: Apache-2.0
+  resources:
+    cpu: 33
+    memory: 32Gi
 
 environment:
   contents:
     packages:
-      - wolfi-base
+      - binutils-dev
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
       - cmake
-      - samurai
-      - binutils-dev
       - libffi-dev
-      - zlib-dev
       - libxml2-dev
+      - llvm-cmake-15
+      - openssf-compiler-options
       - pkgconf
       - python3
-      - llvm-cmake-15
+      - samurai
+      - wolfi-base
+      - zlib-dev
 
 var-transforms:
   - from: ${{package.version}}

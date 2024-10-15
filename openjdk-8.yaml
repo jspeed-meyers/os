@@ -1,83 +1,85 @@
 package:
   name: openjdk-8
-  version: 8.382.05
+  version: 8.422.05 # this corresponds to same release as jdk8u422-ga / jdk8u422-b05
   epoch: 1
   description: "IcedTea distribution of OpenJDK 8"
   copyright:
     - license: GPL-2.0-or-later
   dependencies:
     runtime:
-      - openjdk-8-jre
       - java-cacerts
+      - openjdk-8-jre
 
 environment:
   contents:
     packages:
-      - wolfi-base
-      - build-base
-      - bash
-      - findutils
-      - zip
-      - file
-      - gawk
-      - util-linux-dev
-      - libxslt-dev
+      - alsa-lib-dev
+      - attr-dev
       - autoconf
       - automake
-      - libtool
-      - linux-headers
-      - coreutils
+      - bash
+      - build-base
       - ca-certificates
-      - freetype-dev
+      - cairo-dev
+      - coreutils
       - cups-dev
-      - libx11-dev
-      - libxext-dev
-      - libxrender-dev
-      - libxrandr-dev
-      - libxtst-dev
-      - libice-dev
-      - libxt-dev
-      - alsa-lib-dev
-      - libffi-dev
-      - krb5-dev
-      - pkgconf-dev
-      - attr-dev
       - expat-dev
+      - file
+      - findutils
       - fontconfig-dev
-      - libxi-dev
-      - libjpeg-turbo-dev
+      - freetype-dev
+      - fribidi-dev
+      - gawk
+      - gdk-pixbuf-dev
       - giflib-dev
-      - lcms2-dev
-      - openjdk-7-default-jvm
-      - posix-libc-utils
       - glib-dev
       - gtk-2.0-dev
-      - libxinerama-dev
-      - libxcomposite-dev
       - harfbuzz-dev
-      - pango-dev
-      - cairo-dev
-      - libxft-dev
-      - fribidi-dev
-      - gdk-pixbuf-dev
-      - patch
-      - sed
-      - openjdk-7
+      - krb5-dev
+      - lcms2-dev
+      - libffi-dev
+      - libice-dev
+      - libjpeg-turbo-dev
       - libpng-dev
+      - libtool
+      - libx11-dev
+      - libxcomposite-dev
+      - libxext-dev
+      - libxft-dev
+      - libxi-dev
+      - libxinerama-dev
+      - libxrandr-dev
+      - libxrender-dev
+      - libxslt-dev
+      - libxt-dev
+      - libxtst-dev
+      - linux-headers
+      - openjdk-7
+      - openjdk-7-default-jvm
+      - pango-dev
+      - patch
+      - pkgconf-dev
+      - posix-libc-utils
+      - sed
+      - util-linux-dev
+      - wolfi-base
+      - zip
       - zlib-dev
+  environment:
+    CFLAGS: -Wno-int-conversion -Wno-incompatible-pointer-types
 
 pipeline:
   - uses: fetch
     with:
-      uri: https://icedtea.classpath.org/download/source/icedtea-3.28.0.tar.xz
-      expected-sha512: 39c626b6e6ee0a73bc69f6a6e649c44cceb265f23f215631ef84dc232df840d5b2e5d8796c912c68c7fdfb4a885cce4a651cf314e0399f39059e551e54a34093
+      uri: https://icedtea.classpath.org/download/source/icedtea-3.32.0.tar.xz
+      expected-sha512: 151a1edb7fc459ee2bf43b44d90561513b2fdce39429bf1deca6ef004692fb946a58ad113f02876926df3ec7bcbf639484b903cd0c8840fc9457cab5bc2fa44a
 
   - working-directory: /home/build/icedtea-drops
     pipeline:
       - uses: fetch
         with:
-          uri: https://icedtea.classpath.org/download/drops/icedtea8/3.28.0/openjdk-git.tar.xz
-          expected-sha512: 3613cbc7f21408cda599fd9fe2e01d3deee4b08d2bc446bb0ddabfec345ce1894b69031d51cb3fb7d60bdae13ad01fd6af63925c13718e0ea364fb49b1df7e2b
+          uri: https://icedtea.classpath.org/download/drops/icedtea8/3.32.0/openjdk-git.tar.xz
+          expected-sha512: 502f2d84bf430468464247f9a67d68a18b5d57b09fd47150da05e6da4f848ce48ab368702b347d0b3df1773657ea452491841f4aa5257a8fefd947a0b1e9ec5c
           extract: false
       - uses: fetch
         with:
@@ -198,6 +200,28 @@ subpackages:
       provides:
         - default-jdk=1.8
         - default-jdk-lts=1.8
+
+test:
+  environment:
+    contents:
+      packages:
+        - openjdk-8-default-jdk
+    environment:
+      JAVA_HOME: /usr/lib/jvm/java-8-openjdk
+  pipeline:
+    - name: "Java version Test"
+      runs: |
+        java -version
+    # Test a basic Hello World
+    - working-directory: basic
+      runs: |
+        javac HelloWorld.java
+        java HelloWorld | grep -qi "Hello World!"
+    # Test a basic HTTP connection
+    - working-directory: basic
+      runs: |
+        javac RequestTest.java
+        java RequestTest | grep -qi "Successfully connected to example.org"
 
 update:
   enabled: true

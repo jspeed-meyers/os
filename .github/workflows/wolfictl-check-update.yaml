@@ -2,10 +2,14 @@ name: Wolfictl Check Updates
 
 on:
   pull_request:
-    branches: ['main']
+    branches:
+      - 'main'
   push:
     branches:
       - gh-readonly-queue/main/**
+
+permissions:
+  contents: read
 
 jobs:
   lint:
@@ -16,11 +20,16 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Harden Runner
+      uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
     - name: Get changed files
       id: files
-      uses: tj-actions/changed-files@210cc839c24f532fe4fbf510b7b3314ca9a2b90b # v35.5.1
+      uses: tj-actions/changed-files@c3a1bb2c992d77180ae65be6ae6c166cf40f857c # v45.0.3
       with:
         separator: ' '
         files: "*.yaml"
@@ -28,10 +37,9 @@ jobs:
 
     - name: Check
       id: check
+      # this need to point to main to always get the latest action
+      uses: wolfi-dev/actions/wolfictl-check-updates@main # main
       if: ${{ steps.files.outputs.all_changed_files != '' }}
-      uses: docker://ghcr.io/wolfi-dev/wolfictl:latest@sha256:55b941de34632d049fb426b021dcf3280ac6b8c3c11ae58b5108667c1635aec2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        entrypoint: wolfictl
-        args: check update ${{ steps.files.outputs.all_changed_files }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        changed_files: ${{ steps.files.outputs.all_changed_files }}

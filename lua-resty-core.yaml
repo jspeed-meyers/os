@@ -1,26 +1,27 @@
 package:
   name: lua-resty-core
-  version: 0.1.27
+  version: 0.1.30
   epoch: 0
   description: "lua-resty-core - New FFI-based Lua API for ngx_http_lua_module and/or ngx_stream_lua_module"
   copyright:
-    - license: BSD
+    - license: BSD-3-Clause
 
 environment:
   contents:
     packages:
-      - wolfi-base
-      - busybox
-      - ca-certificates-bundle
-      - build-base
-      - luajit
       - automake
+      - bash
+      - build-base
+      - ca-certificates-bundle
+      - luajit
+      - wolfi-base
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/openresty/lua-resty-core/archive/v${{package.version}}.tar.gz
-      expected-sha256: 39baab9e2b31cc48cecf896cea40ef6e80559054fd8a6e440cc804a858ea84d4
+      repository: https://github.com/openresty/lua-resty-core
+      tag: v${{package.version}}
+      expected-commit: 2da3d7719a05b2981f3808ca874517b558f29fa9
 
   - runs: |
       export LUAJIT_LIB=/usr/lib
@@ -35,3 +36,28 @@ update:
     identifier: openresty/lua-resty-core
     strip-prefix: v
     use-tag: true
+
+test:
+  environment:
+    contents:
+      packages:
+        - bash
+        - luajit
+  pipeline:
+    - name: "Check lua-resty-core Installation"
+      runs: |
+        echo "Verifying lua-resty-core installation..."
+        if [ -d "/usr/lib/lua/resty" ]; then
+          echo "lua-resty-core directory found."
+        else
+          echo "lua-resty-core directory not found!" && exit 1
+        fi
+    - name: "Test Lua basic functionality"
+      runs: |
+        echo "Testing Lua basic functionality..."
+        cat <<EOF > test_basic.lua
+        print("Lua basic test executed successfully!")
+        EOF
+
+        echo "Running Lua basic test script..."
+        luajit test_basic.lua

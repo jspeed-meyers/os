@@ -1,33 +1,29 @@
 package:
   name: py3-sphinxcontrib-htmlhelp
-  version: 2.0.4
-  epoch: 2
+  version: 2.1.0
+  epoch: 1
   description: sphinxcontrib-htmlhelp is a sphinx extension which renders HTML help files
   copyright:
     - license: BSD-2-Clause
-  dependencies:
-    runtime:
-      - py3-sphinx
-      - python3
 
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - wolfi-base
-      - busybox
       - build-base
-      - python3
-      - py3-setuptools
-      - py3-pip
-      - py3-installer
+      - busybox
+      - ca-certificates-bundle
       - py3-build
+      - py3-installer
+      - py3-pip
+      - py3-setuptools
+      - python3
+      - wolfi-base
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/sphinx-doc/sphinxcontrib-htmlhelp
-      expected-commit: 39ee387356bc8041669efd11ba7c28cc4b28012a
+      expected-commit: f7f5d4ecf27fad97e2454fbeda94c6a105c994ff
       tag: ${{package.version}}
 
   - name: Python Build

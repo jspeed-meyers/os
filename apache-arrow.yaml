@@ -1,10 +1,21 @@
 package:
   name: apache-arrow
-  version: 14.0.0
-  epoch: 0
+  version: 17.0.0
+  epoch: 2
   description: "multi-language toolbox for accelerated data interchange and in-memory processing"
   copyright:
     - license: Apache-2.0
+
+vars:
+  pypi-package: pyarrow
+
+data:
+  - name: py-versions
+    items:
+      3.10: '310'
+      3.11: '311'
+      3.12: '312'
+      3.13: '300'
 
 environment:
   contents:
@@ -19,6 +30,7 @@ environment:
       - bzip2-dev
       - c-ares-dev
       - cmake
+      - cython
       - gflags-dev
       - glog-dev
       - grpc
@@ -33,6 +45,9 @@ environment:
       - protobuf
       - protobuf-dev
       - protoc
+      - py3-supported-build-base-dev
+      - py3-supported-cython
+      - py3-supported-numpy
       - rapidjson-dev
       - re2-dev
       - snappy-dev
@@ -44,6 +59,13 @@ environment:
       - xsimd-dev
       - zlib-dev
       - zstd-dev
+      - zstd-static
+  environment:
+    # These PYARROW_* and CMAKE_PREFIX_PATH are used by the python build.
+    PYARROW_PARALLEL: "4"
+    PYARROW_WITH_PARQUET: "1"
+    PYARROW_WITH_ACERO: "1"
+    CMAKE_PREFIX_PATH: "/home/build/melange-out/apache-arrow/usr"
 
 pipeline:
   - uses: git-checkout
@@ -51,7 +73,7 @@ pipeline:
     with:
       repository: https://github.com/apache/arrow
       tag: apache-arrow-${{package.version}}
-      expected-commit: 2dcee3f82c6cf54b53a64729fd81840efa583244
+      expected-commit: 6a2e19a852b367c72d7b12da4d104456491ed8b7
 
   - working-directory: /home/build/apache-arrow/cpp
     uses: cmake/configure
@@ -88,7 +110,7 @@ pipeline:
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DGLOG_INCLUDE_DIR=/usr/include/glog \
-        -DGLOG_LIB=/usr/lib/libglog.so.1 \
+        -DGLOG_LIB=/usr/lib/libglog.so.2 \
         -DLZ4_SOURCE=SYSTEM \
         -DZSTD_LIB=/usr/lib/libzstd.so.1 \
         -DZSTD_SOURCE=SYSTEM \
@@ -103,6 +125,42 @@ pipeline:
   - uses: strip
 
 subpackages:
+  - range: py-versions
+    name: py${{range.key}}-${{vars.pypi-package}}
+    description: ${{vars.pypi-package}} installed for python${{range.key}}
+    dependencies:
+      provider-priority: ${{range.value}}
+      provides:
+        - py3-${{vars.pypi-package}}
+        - pyarrow
+      runtime:
+        - py${{range.key}}-numpy
+    pipeline:
+      - working-directory: /home/build/apache-arrow/python
+        pipeline:
+          - uses: py/pip-build-install
+            with:
+              python: python${{range.key}}
+      - uses: strip
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python${{range.key}}
+            imports: |
+              import pyarrow
+              from pyarrow import acero
+              from pyarrow import parquet
+
+  - name: py3-supported-${{vars.pypi-package}}
+    description: meta package providing ${{vars.pypi-package}} for supported python versions.
+    dependencies:
+      runtime:
+        - py3.10-${{vars.pypi-package}}
+        - py3.11-${{vars.pypi-package}}
+        - py3.12-${{vars.pypi-package}}
+        - py3.13-${{vars.pypi-package}}
+
   - name: ${{package.name}}-dev
     description: "multi-language toolbox for accelerated data interchange and in-memory processing (development files)"
     pipeline:
@@ -116,17 +174,14 @@ subpackages:
     pipeline:
       - runs: |
           mkdir -p ${{targets.subpkgdir}}/usr/lib
-          cp ${{targets.destdir}}/usr/lib/libarrow_dataset.so.* ${{targets.subpkgdir}}/usr/lib
-    dependencies:
-      runtime:
-        - libarrow
+          cp -a ${{targets.destdir}}/usr/lib/libarrow.so.* ${{targets.subpkgdir}}/usr/lib
 
   - name: "libarrow_acero"
     description: "multi-language toolbox for accelerated data interchange and in-memory processing (libarrow_acero library)"
     pipeline:
       - runs: |
           mkdir -p ${{targets.subpkgdir}}/usr/lib
-          cp ${{targets.destdir}}/usr/lib/libarrow_acero.so.* ${{targets.subpkgdir}}/usr/lib
+          cp -a ${{targets.destdir}}/usr/lib/libarrow_acero.so.* ${{targets.subpkgdir}}/usr/lib
     dependencies:
       runtime:
         - libarrow
@@ -136,7 +191,7 @@ subpackages:
     pipeline:
       - runs: |
           mkdir -p ${{targets.subpkgdir}}/usr/lib
-          cp ${{targets.destdir}}/usr/lib/libarrow_dataset.so.* ${{targets.subpkgdir}}/usr/lib
+          cp -a ${{targets.destdir}}/usr/lib/libarrow_dataset.so.* ${{targets.subpkgdir}}/usr/lib
     dependencies:
       runtime:
         - libarrow
@@ -146,7 +201,7 @@ subpackages:
     pipeline:
       - runs: |
           mkdir -p ${{targets.subpkgdir}}/usr/lib
-          cp ${{targets.destdir}}/usr/lib/libarrow_flight.so.* ${{targets.subpkgdir}}/usr/lib
+          cp -a ${{targets.destdir}}/usr/lib/libarrow_flight.so.* ${{targets.subpkgdir}}/usr/lib
     dependencies:
       runtime:
         - libarrow
@@ -156,7 +211,7 @@ subpackages:
     pipeline:
       - runs: |
           mkdir -p ${{targets.subpkgdir}}/usr/lib
-          cp ${{targets.destdir}}/usr/lib/libparquet.so.* ${{targets.subpkgdir}}/usr/lib
+          cp -a ${{targets.destdir}}/usr/lib/libparquet.so.* ${{targets.subpkgdir}}/usr/lib
     dependencies:
       runtime:
         - libarrow

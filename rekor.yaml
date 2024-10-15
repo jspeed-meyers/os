@@ -1,14 +1,10 @@
 package:
   name: rekor
-  version: 1.3.2
-  epoch: 1
+  version: 1.3.6
+  epoch: 9
   description: Software Supply Chain Transparency Log
-  target-architecture:
-    - all
   copyright:
     - license: Apache-2.0
-      paths:
-        - "*"
   checks:
     disabled:
       - empty
@@ -24,7 +20,11 @@ pipeline:
     with:
       repository: https://github.com/sigstore/rekor
       tag: v${{package.version}}
-      expected-commit: 1c2ae1c9d74af411ebecd1d947972bfc7d8c8938
+      expected-commit: a6788566cd62facb0fb0450e9d2c2867f551e37c
+
+  - uses: go/bump
+    with:
+      deps: golang.org/x/net@v0.23.0 github.com/Azure/azure-sdk-for-go/sdk/azidentity@v1.6.0 github.com/hashicorp/go-retryablehttp@v0.7.7 github.com/rs/cors@v1.11.0
 
 subpackages:
   - name: ${{package.name}}-server
@@ -32,7 +32,6 @@ subpackages:
       - uses: go/build
         with:
           modroot: .
-          subpackage: "true"
           packages: ./cmd/rekor-server
           output: rekor-server
           ldflags: -w
@@ -43,7 +42,6 @@ subpackages:
       - uses: go/build
         with:
           modroot: .
-          subpackage: "true"
           packages: ./cmd/rekor-cli
           output: rekor-cli
           ldflags: -w
@@ -54,7 +52,6 @@ subpackages:
       - uses: go/build
         with:
           modroot: .
-          subpackage: "true"
           packages: ./cmd/backfill-redis
           output: backfill-redis
           ldflags: -w

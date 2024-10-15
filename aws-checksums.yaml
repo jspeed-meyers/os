@@ -1,6 +1,6 @@
 package:
   name: aws-checksums
-  version: 0.1.17
+  version: 0.1.20
   epoch: 0
   description: AWS Cross-Platform HW accelerated CRC32c and CRC32 with fallback to efficient SW implementations
   copyright:
@@ -14,13 +14,15 @@ environment:
       - busybox
       - ca-certificates-bundle
       - cmake
+      - openssf-compiler-options
       - samurai
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha512: b75f5442db9a61f8856756c4a784339fd446effca0cdb02c67e51ce9f14ea76f5ca94d29a69f2a452c63c868598489343ec1d097432a8a0159868731422cfbf4
-      uri: https://github.com/awslabs/aws-checksums/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: ce04ab00b3ecc41912f478bfedca39f8e1919d6b
+      repository: https://github.com/awslabs/aws-checksums
+      tag: v${{package.version}}
 
   - runs: |
       if [ "$CBUILD" != "$CHOST" ]; then

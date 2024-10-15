@@ -1,10 +1,10 @@
 package:
   name: stunnel
-  version: "5.71"
+  version: "5.73"
   epoch: 0
   description: SSL encryption wrapper between network client and server
   copyright:
-    - license: GPL-2.0-or-later with OpenSSL exception
+    - license: GPL-2.0-or-later
   dependencies:
     runtime:
       - libgcc # This isn't detected by melange for some reason
@@ -12,13 +12,13 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - openssl-dev
       - linux-headers
+      - openssl-dev
       - python3
 
 # transform melange version x.y => x
@@ -32,7 +32,7 @@ pipeline:
   - uses: fetch
     with:
       uri: https://www.stunnel.org/archive/${{vars.mangled-package-version}}.x/stunnel-${{package.version}}.tar.gz
-      expected-sha512: c7004f48b93b3415305eec1193d51b7bf51a3bdd2cdc9f6ae588f563b32408b1ecde83b9f3f5b658f945ab5bcc5124390c38235394aad4471bf5b666081af2a2
+      expected-sha512: f52cdf683ff8a72b2ccc2ec8ad775ad6c3259b7438b47eba4ad1553d4b709ed49303a0e9f51e02d64745411d7ac477e86843d40e959379c0223308e954e1927d
 
   - uses: autoconf/configure
     with:

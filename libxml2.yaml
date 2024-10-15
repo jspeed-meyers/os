@@ -1,7 +1,7 @@
 package:
   name: libxml2
-  version: 2.11.5
-  epoch: 1
+  version: 2.13.4
+  epoch: 0
   description: XML parsing library, version 2
   copyright:
     - license: MIT
@@ -17,25 +17,25 @@ var-transforms:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - zlib-dev
-      - xz-dev
+      - libtool
+      - pkgconf-dev
       - python3-dev
+      - xz-dev
+      - zlib-dev
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 3727b078c360ec69fa869de14bd6f75d7ee8d36987b071e6928d4720a28df3a6
-      uri: https://download.gnome.org/sources/libxml2/${{vars.mangled-package-version}}/libxml2-${{package.version}}.tar.xz
+      repository: https://gitlab.gnome.org/GNOME/libxml2.git
+      tag: v${{package.version}}
+      expected-commit: 60d3056c97067e6cb2125284878ed7c99c90ed81
 
-  - uses: patch
-    with:
-      # Patch from: https://gitlab.gnome.org/GNOME/libxml2/-/commit/d39f78069dff496ec865c73aa44d7110e429bce9.patch
-      patches: CVE-2023-45322.patch
+  - runs: ./autogen.sh
 
   - uses: autoconf/configure
     with:
@@ -69,6 +69,44 @@ subpackages:
           mkdir -p ${{targets.subpkgdir}}/usr/bin
           mv ${{targets.destdir}}/usr/bin ${{targets.subpkgdir}}/usr
     description: libxml2 utils
+    test:
+      pipeline:
+        - name: Verify libxml2 installation
+          runs: |
+            xml2-config --version || exit 1
+            xml2-config --help
+            xmlcatalog version
+            xmlcatalog help
+            xmllint --version
+        - name: Basic XML parsing
+          runs: |
+            cat << EOF > example.xml
+            <note>
+                <to>User</to>
+                <from>Assistant</from>
+                <heading>Reminder</heading>
+                <body>Don't forget me this weekend!</body>
+            </note>
+            EOF
+            xmllint --noout example.xml || exit 1
+        - name: XML validation with DTD
+          runs: |
+            cat << 'EOF' > example.dtd
+            <!ELEMENT note (to,from,heading,body)>
+            <!ELEMENT to (#PCDATA)>
+            <!ELEMENT from (#PCDATA)>
+            <!ELEMENT heading (#PCDATA)>
+            <!ELEMENT body (#PCDATA)>
+            EOF
+            cat << 'EOF' > note.xml
+            <note>
+                <to>Tove</to>
+                <from>Jani</from>
+                <heading>Reminder</heading>
+                <body>Don't forget me this weekend!</body>
+            </note>
+            EOF
+            xmllint --noout --dtdvalid example.dtd note.xml || exit 1
 
   - name: libxml2-dev
     pipeline:
@@ -80,6 +118,20 @@ subpackages:
         - xz-dev
         - libxml2-utils
     description: libxml2 dev
+    test:
+      environment:
+        contents:
+          packages:
+            - gcc
+            - glibc-dev
+            - libxml2-utils
+      pipeline:
+        - name: Verify libxml2-dev installation
+          runs: |
+            echo '#include <libxml/parser.h>' > test.c
+            echo 'int main() {return 0;}' >> test.c
+            gcc -o test test.c $(xml2-config --cflags) $(xml2-config --libs)
+            ./test || exit 1
 
 update:
   enabled: true

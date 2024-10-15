@@ -1,6 +1,6 @@
 package:
   name: fulcio
-  version: 1.4.3
+  version: 1.6.5
   epoch: 0
   description: Sigstore OIDC PKI
   copyright:
@@ -13,16 +13,16 @@ environment:
 pipeline:
   - uses: git-checkout
     with:
+      expected-commit: 7920be28f7f58020c4da8ab9bb78554ad7cd67ea
       repository: https://github.com/sigstore/fulcio
       tag: v${{package.version}}
-      expected-commit: 99cb25d0099dfd9d8e0b0da05d8cf129177ebaa0
 
   - uses: go/build
     with:
-      packages: ./
+      ldflags: -s -w
       modroot: .
       output: fulcio
-      ldflags: -s -w
+      packages: ./
 
   - uses: strip
 
@@ -31,3 +31,21 @@ update:
   github:
     identifier: sigstore/fulcio
     strip-prefix: v
+
+test:
+  environment:
+    contents:
+      packages:
+        - curl
+  pipeline:
+    - name: Check Fulcio version
+      runs: |
+        # Check the Fulcio version
+        fulcio version
+        fulcio --help
+    - name: Run fulcio server
+      runs: |
+        fulcio serve --ca=ephemeralca &
+        echo "Sleep 2 seconds and try to retrieve root certificate"
+        sleep 2
+        curl localhost:8080/api/v1/rootCert

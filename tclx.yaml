@@ -1,10 +1,10 @@
 package:
   name: tclx
-  version: 8.6.2
-  epoch: 0
+  version: 8.6.3
+  epoch: 1
   description: TclX extension to Tcl
   copyright:
-    - license: BSD
+    - license: BSD-3-Clause
   dependencies:
     runtime:
       - tcl
@@ -12,19 +12,20 @@ package:
 environment:
   contents:
     packages:
-      - busybox
-      - bash
-      - ca-certificates-bundle
-      - build-base
-      - automake
       - autoconf
+      - automake
+      - bash
+      - build-base
+      - busybox
+      - ca-certificates-bundle
       - tcl-dev
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/flightaware/tclx/archive/v${{package.version}}.tar.gz
-      expected-sha512: 299ae04c00edd268f41da5e0e2f8baca2965e3cad1d7ece86bd84e55d83f5e9574b260c22fd891d5284700b751f73f3b6b30d9e31b53f435fd4cfe5d5c7cf0eb
+      repository: https://github.com/flightaware/tclx
+      tag: v${{package.version}}
+      expected-commit: 6320ab951ef78dd7c3aeedb6a5a8d2ae9f3e4728
 
   - uses: autoconf/configure
     with:

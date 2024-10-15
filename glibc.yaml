@@ -1,15 +1,22 @@
 package:
   name: glibc
-  version: 2.38
-  epoch: 5
+  version: 2.40
+  epoch: 2
   description: "the GNU C library"
   copyright:
-    - license: GPL-3.0-or-later
+    - license: LGPL-2.1-or-later
+  resources:
+    cpu: 16
+    memory: 16Gi
   dependencies:
     runtime:
-      - wolfi-baselayout
-      - glibc-locale-posix
+      # This prevents Alpine users from being able to `apk add` any Wolfi packages
+      # that depend on glibc, if they happen to have configured both repositories.
+      # Only apk-tools respects this constraint; apko-based tools don't respect
+      # the ! constraint.
       - '!musl'
+      - glibc-locale-posix
+      - wolfi-baselayout
   scriptlets:
     trigger:
       paths:
@@ -28,43 +35,31 @@ environment:
     keyring:
       - https://packages.wolfi.dev/bootstrap/stage3/wolfi-signing.rsa.pub
     packages:
-      - wolfi-baselayout
-      - busybox
-      - build-base
-      - ca-certificates-bundle
-      - texinfo
-      - zlib
-      - gawk
       - bison
+      - build-base
+      - busybox
+      - ca-certificates-bundle
       - flex
+      - gawk
       - grep
       - python3
+      - rdfind
+      - texinfo
+      - wolfi-baselayout
+      - zlib
+  # glibc manages FORTIFY_SOURCE on per-file basis
+  environment:
+    CPPFLAGS: ""
 
 pipeline:
   - uses: fetch
     with:
-      uri: http://ftp.gnu.org/gnu/libc/glibc-${{package.version}}.tar.xz
-      expected-sha256: fb82998998b2b29965467bc1b69d152e9c307d2cf301c9eafb4555b770ef3fd2
+      uri: https://ftp.gnu.org/gnu/libc/glibc-${{package.version}}.tar.xz
+      expected-sha256: 19a890175e9263d748f627993de6f4b1af9cd21e03f080e4bfb3a1fac10205a2
 
   - uses: patch
     with:
       patches: Disable-AVX512VL.patch
-
-  - uses: patch
-    with:
-      patches: gettext-c-utf8.patch
-
-  - uses: patch
-    with:
-      patches: CVE-2023-4527.patch
-
-  - uses: patch
-    with:
-      patches: CVE-2023-5156.patch
-
-  - uses: patch
-    with:
-      patches: CVE-2023-4911.patch
 
   - name: 'Set up build directory'
     runs: |
@@ -81,9 +76,6 @@ pipeline:
       echo "build-programs=no" > configparms
       cat configparms.base >> configparms
 
-      # We remove fortify when building the libraries
-      export CPPFLAGS=${CPPFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
-
       ../configure \
         --prefix=/usr \
         --libdir=/usr/lib \
@@ -91,18 +83,22 @@ pipeline:
         --includedir=/usr/include \
         --host=${{host.triplet.gnu}} \
         --build=${{host.triplet.gnu}} \
+        --enable-bind-now \
+        --enable-fortify-source \
+        --enable-stackguard-randomization \
+        --enable-stack-protector=strong \
+        --enable-cet \
+        --with-pkgversion="glibc-${{package.full-version}}" \
         --disable-werror \
-        --enable-crypt \
+        --disable-crypt \
         --enable-kernel=4.9
 
   - runs: |
-      export CPPFLAGS=${CPPFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
       make -C build -j$(nproc)
 
   - runs: |
       # Build the programs with fortify
       echo "build-programs=yes" > build/configparms
-      echo "CPPFLAGS += -Wp,-D_FORTIFY_SOURCE=3" >> build/configparms
       cat build/configparms.base >> build/configparms
       make -C build -j$(nproc)
 
@@ -182,6 +178,7 @@ data:
       fur: Friulian
       fy: Western Frisian
       ga: Irish
+      gbm: Garhwali
       gd: Scottish Gaelic
       gez: Geez
       gl: Galician
@@ -216,11 +213,13 @@ data:
       ko: Korean
       ks: Kashmiri
       ku: Kurdish
+      kv: Komi
       kw: Cornish
       ky: Kyrgyz
       lb: Luxembourgish
       lg: Ganda
       lij: Ligurian
+      ltg: Latgalian
       li: Limburgish
       ln: Lingala
       lo: Lao
@@ -229,6 +228,7 @@ data:
       lzh: Literary Chinese
       mag: Magahi
       mai: Maithili
+      mdf: Moksha
       mfe: Morisyen
       mg: Malagasy
       mhr: Meadow Mari
@@ -273,6 +273,7 @@ data:
       sat: Santali
       sa: Sanskrit
       sc: Sardinian
+      scn: Sicilian
       sd: Sindhi
       se: Northern Sami
       sgs: Samogitian
@@ -287,7 +288,9 @@ data:
       sq: Albanian
       sr: Serbian
       ss: Swati
+      ssy: Swaho
       st: Southern Sotho
+      su: Sundanese
       sv: Swedish
       sw: Swahili
       syr: Syriac
@@ -304,6 +307,7 @@ data:
       tl: Tagalog
       tn: Tswana
       to: Tongan
+      tok: Toki Pona
       tpi: Tok Pisin
       tr: Turkish
       ts: Tsonga
@@ -324,6 +328,7 @@ data:
       yo: Yoruba
       yue: Cantonese
       yuw: Yau
+      zgh: Moroccan Berber
       zh: Mandarin Chinese
       zu: Zulu
 
@@ -347,6 +352,7 @@ subpackages:
           mkdir -p "${{targets.subpkgdir}}"/etc
           mv "${{targets.destdir}}"/etc/ld.so.* "${{targets.subpkgdir}}"/etc/
     dependencies:
+      provider-priority: 10
       runtime:
         - wolfi-baselayout
 
@@ -361,6 +367,7 @@ subpackages:
     dependencies:
       runtime:
         - linux-headers
+        - libxcrypt-dev
 
   - name: "glibc-iconv"
     description: "GLIBC iconv tables"
@@ -371,6 +378,11 @@ subpackages:
 
           mkdir -p "${{targets.subpkgdir}}"/usr/sbin
           mv "${{targets.destdir}}"/usr/sbin/iconvconfig "${{targets.subpkgdir}}"/usr/sbin
+    test:
+      pipeline:
+        - runs: |
+            iconvconfig --version
+            iconvconfig --help
 
   - name: "glibc-locales"
     description: "GLIBC locale data"
@@ -390,6 +402,15 @@ subpackages:
           mv "${{targets.destdir}}"/usr/bin/tzselect "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/bin/zdump "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/sbin/zic "${{targets.subpkgdir}}"/usr/sbin
+    test:
+      pipeline:
+        - runs: |
+            tzselect --version
+            tzselect --help
+            zdump --version
+            zdump --help
+            zic --version
+            zic --help
 
   - name: "posix-libc-utils"
     description: "POSIX XCU utilities included with the C library"
@@ -407,6 +428,23 @@ subpackages:
           mv "${{targets.destdir}}"/usr/bin/locale "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/bin/pldd "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/libexec "${{targets.subpkgdir}}"/usr
+    test:
+      pipeline:
+        - runs: |
+            gencat --version
+            gencat --help
+            getconf --version
+            getconf --help
+            getent --version
+            getent --help
+            iconv --version
+            iconv --help
+            ldd --version
+            ldd --help
+            locale --version
+            locale --help
+            pldd --version
+            pldd --help
 
   - name: "localedef"
     description: "Tool for defining GLIBC locales"
@@ -414,6 +452,11 @@ subpackages:
       - runs: |
           mkdir -p "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/bin/localedef "${{targets.subpkgdir}}"/usr/bin
+    test:
+      pipeline:
+        - runs: |
+            localedef --version
+            localedef --help
 
   - name: "sotruss"
     description: "Shared object tracing tool"
@@ -424,6 +467,11 @@ subpackages:
 
           mv "${{targets.destdir}}"/usr/bin/sotruss "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/lib/audit/* "${{targets.subpkgdir}}"/usr/lib/audit/
+    test:
+      pipeline:
+        - runs: |
+            sotruss --version
+            sotruss --help
 
   - name: "nscd"
     description: "NSS caching daemon"
@@ -431,6 +479,11 @@ subpackages:
       - runs: |
           mkdir -p "${{targets.subpkgdir}}"/usr/sbin
           mv "${{targets.destdir}}"/usr/sbin/nscd "${{targets.subpkgdir}}"/usr/sbin/
+    test:
+      pipeline:
+        - runs: |
+            nscd --version
+            nscd --help
 
   - name: "nss-db"
     description: "NSS module for database lookups"
@@ -443,6 +496,11 @@ subpackages:
           mv "${{targets.destdir}}"/usr/bin/makedb "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/lib/libnss_db.so.2 "${{targets.subpkgdir}}"/lib
           mv "${{targets.destdir}}"/var/db "${{targets.subpkgdir}}"/var
+    test:
+      pipeline:
+        - runs: |
+            makedb --version
+            makedb --help
 
   - name: "nss-hesiod"
     description: "NSS module for hesiod lookups"
@@ -460,6 +518,11 @@ subpackages:
 
           mkdir -p "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/bin/pcprofiledump "${{targets.subpkgdir}}"/usr/bin
+    test:
+      pipeline:
+        - runs: |
+            pcprofiledump --version
+            pcprofiledump --help
 
   - name: "glibc-tracing"
     description: "GLIBC tracing and profiling utilities"
@@ -469,6 +532,13 @@ subpackages:
           mv "${{targets.destdir}}"/usr/bin/mtrace "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/bin/xtrace "${{targets.subpkgdir}}"/usr/bin
           mv "${{targets.destdir}}"/usr/bin/sprof "${{targets.subpkgdir}}"/usr/bin
+    test:
+      pipeline:
+        - runs: |
+            sprof --version
+            sprof --help
+            xtrace --version
+            xtrace --help
 
   - name: "sln"
     description: "Staticly-linked symbolic link tool"
@@ -476,15 +546,20 @@ subpackages:
       - runs: |
           mkdir -p "${{targets.subpkgdir}}"/sbin
           mv "${{targets.destdir}}"/sbin/sln "${{targets.subpkgdir}}"/sbin
+    test:
+      pipeline:
+        - runs: |
+            sln --version
+            sln --help
 
   - name: "libcrypt1"
     description: "Password hashing library included with glibc"
     dependencies:
       provider-priority: 10
-    pipeline:
-      - runs: |
-          mkdir -p "${{targets.subpkgdir}}"/lib
-          mv "${{targets.destdir}}"/lib/libcrypt.so* "${{targets.subpkgdir}}"/lib/
+      provides:
+        - so:libcrypt.so.1=1
+      runtime:
+        - libxcrypt
 
   - name: "glibc-locale-posix"
     description: "POSIX locale data for glibc"
@@ -503,6 +578,40 @@ subpackages:
             || mv "${{targets.destdir}}"/usr/lib/locale/${{range.key}}_* "${{targets.subpkgdir}}"/usr/lib/locale/
           [ -d "${{targets.destdir}}"/usr/lib/locale/${{range.key}} ] \
             && mv "${{targets.destdir}}"/usr/lib/locale/${{range.key}} "${{targets.subpkgdir}}"/usr/lib/locale/
+
+          # glibc-locale-en is ~18x as big as it should be due to duplicate files.
+          # rdfind replaces redundant files with hardlinks.
+          rdfind -makehardlinks true "${{targets.subpkgdir}}"/usr/lib/locale/
+
+  # Similar to https://packages.debian.org/bookworm/libc-bin
+  - name: "libc-bin"
+    description: "GNU C Library: Binaries"
+    dependencies:
+      runtime:
+        - posix-libc-utils
+        - tzutils
+        - localedef
+    checks:
+      disabled:
+        - empty
+
+test:
+  pipeline:
+    - runs: |
+        # Ensure locales are excluded from glibc
+        cd /usr/lib/locale
+        locales=$(ls | grep -v C.utf8 || true)
+
+        if [[ -n "${locales}" ]]; then
+          for locale in "${locales}"; do
+            echo "Error: locale $locale found in main package, please add to locale list"
+          done
+          exit 1
+        fi
+        ldconfig --version
+        ldconfig --help
+        ld.so --version
+        ld.so --help
 
 update:
   enabled: true

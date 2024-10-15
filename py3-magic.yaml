@@ -1,36 +1,79 @@
 package:
   name: py3-magic
   version: 0.4.27
-  epoch: 3
-  description: "Python3 wrapper for libmagic"
+  epoch: 8
+  description: Python3 wrapper for libmagic
   copyright:
     - license: MIT
   dependencies:
-    runtime:
-      - python3
-      - libmagic
+    provider-priority: 0
+
+vars:
+  pypi-package: magic
+  import: magic
+
+data:
+  - name: py-versions
+    items:
+      3.10: '310'
+      3.11: '311'
+      3.12: '312'
+      3.13: '300'
 
 environment:
   contents:
     packages:
-      - busybox
-      - ca-certificates-bundle
-      - build-base
-      - py3-setuptools
+      - py3-supported-build-base
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/ahupp/python-magic/archive/${{package.version}}.tar.gz
-      expected-sha512: a476730a5caa9a2a784187f57743d5cec4b1829a6a76d4d1fb4e0112caf5487888961df293bc38074ef1a5d313b0fc4aed4cc99b980f5336e8a907c44a33e84e
+      repository: https://github.com/ahupp/python-magic
+      tag: ${{package.version}}
+      expected-commit: b443195104d89363b93a547584c1a12fce3b57ec
 
-  - runs: |
-      python3 setup.py build
+subpackages:
+  - range: py-versions
+    name: py${{range.key}}-${{vars.pypi-package}}
+    description: python${{range.key}} version of ${{vars.pypi-package}}
+    dependencies:
+      provider-priority: ${{range.value}}
+      provides:
+        - py3-${{vars.pypi-package}}
+      runtime:
+        - libmagic
+    pipeline:
+      - uses: py/pip-build-install
+        with:
+          python: python${{range.key}}
+      - uses: strip
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python${{range.key}}
+            imports: |
+              import ${{vars.import}}
 
-  - runs: |
-      python3 setup.py install --skip-build --root="${{targets.destdir}}"
+  - name: py3-supported-${{vars.pypi-package}}
+    description: meta package providing ${{vars.pypi-package}} for supported python versions.
+    dependencies:
+      runtime:
+        - py3.10-${{vars.pypi-package}}
+        - py3.11-${{vars.pypi-package}}
+        - py3.12-${{vars.pypi-package}}
+        - py3.13-${{vars.pypi-package}}
 
-  - uses: strip
+test:
+  pipeline:
+    - uses: python/import
+      with:
+        imports: |
+          import ${{vars.import}}
+    - uses: python/import
+      with:
+        imports: |
+          import magic
 
 update:
   enabled: true

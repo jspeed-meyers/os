@@ -1,7 +1,7 @@
 package:
   name: php-8.2
-  version: 8.2.11
-  epoch: 2
+  version: 8.2.24
+  epoch: 0
   description: "the PHP programming language"
   copyright:
     - license: PHP-3.01
@@ -9,25 +9,31 @@ package:
     provides:
       - php=${{package.full-version}}
     runtime:
+      - ${{package.name}}-config
       - libxml2
 
 environment:
   contents:
     packages:
+      - aom-dev
+      - autoconf
       - bison
       - build-base
       - busybox
       - bzip2-dev
       - ca-certificates-bundle
       - curl-dev
+      - dav1d-dev
       - file
       - freetds
+      - freetds-dev
       - freetype-dev
       - gmp-dev
       - icu-dev
       - libavif-dev
       - libjpeg-turbo-dev
       - libpng-dev
+      - libpsl-dev
       - libsodium-dev
       - libtool
       - libwebp-dev
@@ -36,29 +42,28 @@ environment:
       - libxpm-dev
       - libxslt-dev
       - libzip
+      - nghttp2-dev
       - oniguruma-dev
       - openldap-dev
       - openssl-dev
-      - postgresql-15-dev
+      - patch
+      - postgresql-dev
+      - re2c
       - readline-dev
       - sqlite-dev
       - unixodbc-dev
+      - wget
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://www.php.net/distributions/php-${{package.version}}.tar.gz
-      expected-sha256: 48b1b41279a678a4d4afcd0b256ed921ebf2a91febb0634fdc4449b91c75799f
-      extract: false
-
-  - name: Prepare Build Folder
-    runs: |
-      mv php-${{package.version}}.tar.gz $HOME/
-      tar zxf $HOME/php-${{package.version}}.tar.gz
+      repository: https://github.com/php/php-src
+      tag: php-${{package.version}}
+      expected-commit: 12ccdff196cd927b2c3e9c04abad3c4117b5bd42
 
   - name: Configure
     runs: |
-      cd $HOME/php-${{package.version}}
+      ./buildconf --force
       EXTENSION_DIR=/usr/lib/php/modules ./configure \
         --prefix=/usr \
         --libdir=/usr/lib/php \
@@ -78,6 +83,7 @@ pipeline:
         --with-iconv=shared \
         --with-openssl=shared \
         --with-readline \
+        --enable-ftp=shared \
         --with-sodium=shared \
         --enable-fpm \
         --with-pear \
@@ -99,6 +105,7 @@ pipeline:
             --with-pdo-sqlite=shared \
             --with-pdo-dblib=shared \
             --with-pdo-pgsql=shared \
+            --with-pdo-odbc=shared,unixODBC,/usr \
         --with-unixODBC=shared,/usr \
         --enable-pcntl=shared \
         --enable-sockets=shared \
@@ -123,21 +130,13 @@ pipeline:
         --with-zip=shared
 
   - uses: autoconf/make
-    with:
-      dir: $HOME/php-${{package.version}}
 
   - name: Make Install
     runs: |
-      cd $HOME/php-${{package.version}}
       INSTALL_ROOT=${{targets.destdir}} DESTDIR=${{targets.destdir}} make install
+      mkdir -p "${{targets.destdir}}/bin" && ln -s /usr/bin/php "${{targets.destdir}}/bin/php"
 
   - uses: strip
-
-  - name: Copy configuration and set up alias on /bin
-    runs: |
-      mkdir -p "${{targets.destdir}}/etc/php/conf.d"
-      mv $HOME/php-${{package.version}}/php.ini-production ${{targets.destdir}}/etc/php/php.ini
-      mkdir -p "${{targets.destdir}}/bin" && ln -s /usr/bin/php "${{targets.destdir}}/bin/php"
 
 data:
   - name: extensions
@@ -153,6 +152,7 @@ data:
       pdo_sqlite: SQLite 3.x driver for PDO
       pdo_dblib: PDO driver for Sybase / MS SQL databases
       pdo_pgsql: PDO driver for pgsql
+      pdo_odbc: PDO driver for ODBC
       soap: SOAP
       sodium: Sodium
       calendar: Calendar
@@ -180,24 +180,55 @@ data:
       fileinfo: fileinfo
       zip: Zip
       odbc: UnixODBC
+      ftp: FTP
 
 subpackages:
+  - name: ${{package.name}}-config
+    dependencies:
+      provides:
+        - php-config=${{package.full-version}}
+    pipeline:
+      - runs: |
+          mkdir -p "${{targets.subpkgdir}}/etc/php/conf.d"
+          mv $HOME/php.ini-production ${{targets.subpkgdir}}/etc/php/php.ini
+
   - range: extensions
     name: "${{package.name}}-${{range.key}}"
     description: "The ${{range.value}} extension"
     dependencies:
+      runtime:
+        - "${{package.name}}-${{range.key}}-config"
       provides:
         - php-${{range.key}}=${{package.full-version}}
     pipeline:
       - runs: |
           export EXTENSIONS_DIR=usr/lib/php/modules
-          export CONF_DIR="${{targets.subpkgdir}}/etc/php/conf.d"
-          mkdir -p "${{targets.subpkgdir}}"/$EXTENSIONS_DIR $CONF_DIR
+          mkdir -p "${{targets.subpkgdir}}"/$EXTENSIONS_DIR
           mv "${{targets.destdir}}/$EXTENSIONS_DIR/${{range.key}}.so" \
             "${{targets.subpkgdir}}/$EXTENSIONS_DIR/${{range.key}}.so"
+
+  - range: extensions
+    name: "${{package.name}}-${{range.key}}-config"
+    description: "The ${{range.value}} extension configuration"
+    dependencies:
+      provides:
+        - php-${{range.key}}-config=${{package.full-version}}
+    pipeline:
+      - runs: |
+          export CONF_DIR="${{targets.subpkgdir}}/etc/php/conf.d"
+          mkdir -p $CONF_DIR
+          order=10
           prefix=
           [ "${{range.key}}" != "opcache" ] || prefix="zend_"
-          echo "${prefix}extension=${{range.key}}.so" > $CONF_DIR/"${{range.key}}.ini"
+          # Determine load order based on number of dependencies found in config.w32
+          [ -f "ext/${{range.key}}/config.w32" ] && \
+            deps=`sed -En "s/.*ADD_EXTENSION_DEP\('${{range.key}}', ([^)]+)\).*/\1/p" "ext/${{range.key}}/config.w32" \
+                | tr -d "'," | tr ' ' '\n' \
+                | sort -u \
+                | while read -r dep; do
+                  [ "$dep" = "true" ] || echo $dep
+                done | wc -w`
+          echo "${prefix}extension=${{range.key}}.so" > $CONF_DIR/"$((order+order*deps))-${{range.key}}.ini"
 
   - name: ${{package.name}}-dev
     description: PHP 8.2 development headers
@@ -211,7 +242,15 @@ subpackages:
           mv ${{targets.destdir}}/usr/bin/phpize ${{targets.subpkgdir}}/usr/bin/
           mv ${{targets.destdir}}/usr/lib ${{targets.subpkgdir}}/usr
 
-  - name: ${{package.name}}-cgi
+  - name: ${{package.name}}-doc
+    description: PHP 8.2 documentation
+    dependencies:
+      provides:
+        - php-doc=${{package.full-version}}
+    pipeline:
+      - uses: split/manpages
+
+  - name: "${{package.name}}-cgi"
     description: PHP 8.2 CGI
     dependencies:
       provides:
@@ -221,7 +260,7 @@ subpackages:
           mkdir -p ${{targets.subpkgdir}}/usr/bin
           mv ${{targets.destdir}}/usr/bin/php-cgi ${{targets.subpkgdir}}/usr/bin/
 
-  - name: ${{package.name}}-dbg
+  - name: "${{package.name}}-dbg"
     description: Interactive PHP Debugger
     dependencies:
       provides:
@@ -231,31 +270,42 @@ subpackages:
           mkdir -p ${{targets.subpkgdir}}/usr/bin
           mv ${{targets.destdir}}/usr/bin/phpdbg ${{targets.subpkgdir}}/usr/bin/
 
-  - name: ${{package.name}}-fpm
+  - name: "${{package.name}}-fpm"
     description: PHP 8.2 FastCGI Process Manager (FPM)
     dependencies:
+      runtime:
+        - "${{package.name}}-fpm-config"
       provides:
         - php-fpm=${{package.full-version}}
     pipeline:
       - runs: |
-          mkdir -p ${{targets.subpkgdir}}/usr/sbin ${{targets.subpkgdir}}/etc/php/php-fpm.d
+          mkdir -p ${{targets.subpkgdir}}/usr/sbin
           mv ${{targets.destdir}}/usr/sbin/php-fpm ${{targets.subpkgdir}}/usr/sbin/
+
+  - name: ${{package.name}}-fpm-config
+    description: PHP 8.2 FastCGI Process Manager (FPM) configuration
+    dependencies:
+      provides:
+        - php-fpm-config=${{package.full-version}}
+    pipeline:
+      - runs: |
+          mkdir -p ${{targets.subpkgdir}}/etc/php/php-fpm.d
           mv ${{targets.destdir}}/etc/php/php-fpm.conf.default ${{targets.subpkgdir}}/etc/php/php-fpm.conf
           mv ${{targets.destdir}}/etc/php/php-fpm.d/www.conf.default ${{targets.subpkgdir}}/etc/php/php-fpm.d/www.conf \
           && { \
-          	echo '[global]'; \
-          	echo 'error_log = /proc/self/fd/2'; \
+            echo '[global]'; \
+            echo 'error_log = /proc/self/fd/2'; \
             echo 'daemonize = no'; \
-          	echo; \
-          	echo '[www]'; \
+            echo; \
+            echo '[www]'; \
             echo 'listen = [::]:9000'; \
-          	echo 'access.log = /proc/self/fd/2'; \
+            echo 'access.log = /proc/self/fd/2'; \
             echo; \
-          	echo 'clear_env = no'; \
-          	echo; \
-          	echo 'catch_workers_output = yes'; \
+            echo 'clear_env = no'; \
             echo; \
-          	echo 'decorate_workers_output = no'; \
+            echo 'catch_workers_output = yes'; \
+            echo; \
+            echo 'decorate_workers_output = no'; \
           } | tee ${{targets.subpkgdir}}/etc/php/php-fpm.d/zz-apko.conf
 
 update:
@@ -265,3 +315,59 @@ update:
     strip-prefix: php-
     tag-filter: php-8.2
     use-tag: true
+
+test:
+  environment:
+    contents:
+      packages:
+        - postgresql
+        - postgresql-client
+        - wolfi-base
+        - shadow
+        - sudo-rs
+        - glibc-locales
+        - php-8.2-pgsql
+    environment:
+      PGDATA: /tmp/test_db
+      PGUSER: wolfi
+  pipeline:
+    - name: "Test database creation"
+      runs: |
+        useradd $PGUSER
+        sudo -u $PGUSER initdb -D /tmp/test_db
+        sudo -u $PGUSER pg_ctl -D /tmp/test_db -l /tmp/logfile start
+        sudo -u $PGUSER createdb testdb
+        psql -lqt | cut -d \| -f 1 | grep -qw testdb
+        php --help
+    - name: "Test basic read/write operations"
+      runs: |
+        sudo -u $PGUSER psql -d testdb -c "CREATE TABLE test_table (id SERIAL PRIMARY KEY, test_value VARCHAR(50));"
+        sudo -u $PGUSER psql -d testdb -c "INSERT INTO test_table (test_value) VALUES ('Hello, Wolfi!');"
+        sudo -u $PGUSER psql -d testdb -t -A -c "SELECT test_value FROM test_table WHERE id=1;"
+    - name: "Test php"
+    - runs: |
+        php --version
+        php -m
+    - runs: |
+        cat <<'EOF' >> /tmp/read_db.php
+        <?php
+        $conn = pg_connect("host=localhost dbname=testdb user=wolfi");
+        if (!$conn) {
+            echo "Connection error.\n";
+            exit;
+        }
+        $result = pg_query($conn, "SELECT test_value FROM test_table WHERE id=1");
+        if (!$result) {
+            echo "Error in the query.\n";
+            exit;
+        }
+        $row = pg_fetch_row($result);
+        if (!$row) {
+            echo "Empty.\n";
+            exit;
+        }
+        echo "Value from test_table: $row[0]\n";
+        pg_close($conn);
+        ?>
+        EOF
+        php /tmp/read_db.php

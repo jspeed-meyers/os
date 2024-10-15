@@ -17,9 +17,29 @@ MELANGE_OPTS += --signing-key ${KEY}
 MELANGE_OPTS += --arch ${ARCH}
 MELANGE_OPTS += --env-file build-${ARCH}.env
 MELANGE_OPTS += --namespace wolfi
-MELANGE_OPTS += --generate-index false
+MELANGE_OPTS += --generate-index false # TODO: This false gets parsed as argv not flag value!!!
 MELANGE_OPTS += --pipeline-dir ./pipelines/
 MELANGE_OPTS += ${MELANGE_EXTRA_OPTS}
+
+# Enter interactive mode on failure for debug
+MELANGE_DEBUG_OPTS += --interactive
+MELANGE_DEBUG_OPTS += --package-append apk-tools
+MELANGE_DEBUG_OPTS += ${MELANGE_OPTS}
+
+# Enter interactive mode on test failure for debug
+MELANGE_DEBUG_TEST_OPTS += --interactive
+
+# These are separate from MELANGE_OPTS because for building we need additional
+# ones that are not defined for tests.
+MELANGE_TEST_OPTS += --repository-append ${REPO}
+MELANGE_TEST_OPTS += --keyring-append ${KEY}.pub
+MELANGE_TEST_OPTS += --arch ${ARCH}
+MELANGE_TEST_OPTS += --pipeline-dirs ./pipelines/
+MELANGE_TEST_OPTS += --repository-append https://packages.wolfi.dev/os
+MELANGE_TEST_OPTS += --keyring-append https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+MELANGE_TEST_OPTS += --test-package-append wolfi-base
+MELANGE_TEST_OPTS += --debug
+MELANGE_TEST_OPTS += ${MELANGE_EXTRA_OPTS}
 
 ifeq (${USE_CACHE}, yes)
 	MELANGE_OPTS += --cache-source ${CACHE_DIR}
@@ -78,39 +98,84 @@ list-yaml:
 
 package/%:
 	$(eval yamlfile := $*.yaml)
+	@if [ -z "$(yamlfile)" ]; then \
+		echo "Error: could not find yaml file for $*"; exit 1; \
+	else \
+		echo "yamlfile is $(yamlfile)"; \
+	fi
 	$(eval pkgver := $(shell $(MELANGE) package-version $(yamlfile)))
+	@printf "Building package $* with version $(pkgver) from file $(yamlfile)\n"
 	$(MAKE) yamlfile=$(yamlfile) pkgname=$* packages/$(ARCH)/$(pkgver).apk
 
 packages/$(ARCH)/%.apk: $(KEY)
 	@mkdir -p ./$(pkgname)/
 	$(eval SOURCE_DATE_EPOCH ?= $(shell git log -1 --pretty=%ct --follow $(yamlfile)))
-	@SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(MELANGE) build $(yamlfile) $(MELANGE_OPTS) --source-dir ./$(pkgname)/ --log-policy builtin:stderr,$(TARGETDIR)/buildlogs/$*.log
+	$(info @SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(MELANGE) build $(yamlfile) $(MELANGE_OPTS))
+	@SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(MELANGE) build $(yamlfile) $(MELANGE_OPTS) --source-dir ./$(pkgname)/
+
+debug/%:
+	$(eval yamlfile := $*.yaml)
+	@if [ -z "$(yamlfile)" ]; then \
+		echo "Error: could not find yaml file for $*"; exit 1; \
+	else \
+		echo "yamlfile is $(yamlfile)"; \
+	fi
+	$(eval pkgver := $(shell $(MELANGE) package-version $(yamlfile)))
+	@printf "Building package $* with version $(pkgver) from file $(yamlfile)\n"
+	@mkdir -p ./"$*"/
+	$(eval SOURCE_DATE_EPOCH ?= $(shell git log -1 --pretty=%ct --follow $(yamlfile)))
+	$(info @SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(MELANGE) build $(yamlfile) $(MELANGE_OPTS))
+	@SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(MELANGE) build $(yamlfile) $(MELANGE_DEBUG_OPTS) --source-dir ./$(*)/
+
+test/%:
+	@mkdir -p ./$(*)/
+	$(eval yamlfile := $*.yaml)
+	@if [ -z "$(yamlfile)" ]; then \
+		echo "Error: could not find yaml file for $*"; exit 1; \
+	else \
+		echo "yamlfile is $(yamlfile)"; \
+	fi
+	$(eval pkgver := $(shell $(MELANGE) package-version $(yamlfile)))
+	@printf "Testing package $* with version $(pkgver) from file $(yamlfile)\n"
+	$(MELANGE) test $(yamlfile) $(MELANGE_TEST_OPTS) --source-dir ./$(*)/
+
+test-debug/%:
+	@mkdir -p ./$(*)/
+	$(eval yamlfile := $*.yaml)
+	@if [ -z "$(yamlfile)" ]; then \
+		echo "Error: could not find yaml file for $*"; exit 1; \
+	else \
+		echo "yamlfile is $(yamlfile)"; \
+	fi
+	$(eval pkgver := $(shell $(MELANGE) package-version $(yamlfile)))
+	@printf "Testing package $* with version $(pkgver) from file $(yamlfile)\n"
+	$(MELANGE) test $(yamlfile) $(MELANGE_TEST_OPTS) $(MELANGE_DEBUG_TEST_OPTS) --source-dir ./$(*)/
 
 dev-container:
 	docker run --privileged --rm -it \
 	    -v "${PWD}:${PWD}" \
 	    -w "${PWD}" \
 	    -e SOURCE_DATE_EPOCH=0 \
-	    ghcr.io/wolfi-dev/sdk:latest@sha256:954e0b8b77c9cbe82792c321787f5b73ab5765ee887df921a13778c9c0d30714
+	    ghcr.io/wolfi-dev/sdk:latest@sha256:41ccdf9610e3dcd2470948615a96071bc860e15f06b092533fe09c0b265645db
 
 PACKAGES_CONTAINER_FOLDER ?= /work/packages
-TMP_REPOSITORIES_DIR := $(shell mktemp -d)
-TMP_REPOSITORIES_FILE := $(TMP_REPOSITORIES_DIR)/repositories
 # This target spins up a docker container that is helpful for testing local
 # changes to the packages. It mounts the local packages folder as a read-only,
 # and sets up the necessary keys for you to run `apk add` commands, and then
 # test the packages however you see fit.
 local-wolfi:
-	@echo "https://packages.wolfi.dev/os" > $(TMP_REPOSITORIES_FILE)
-	@echo "$(PACKAGES_CONTAINER_FOLDER)" >> $(TMP_REPOSITORIES_FILE)
+	$(eval TMP_REPOS_DIR := $(shell mktemp --tmpdir -d "$@.XXXXXX"))
+	$(eval TMP_REPOS_FILE := $(TMP_REPOS_DIR)/repositories)
+	@echo "https://packages.wolfi.dev/os" > $(TMP_REPOS_FILE)
+	@echo "$(PACKAGES_CONTAINER_FOLDER)" >> $(TMP_REPOS_FILE)
 	docker run --rm -it \
 		--mount type=bind,source="${PWD}/packages",destination="$(PACKAGES_CONTAINER_FOLDER)",readonly \
 		--mount type=bind,source="${PWD}/local-melange.rsa.pub",destination="/etc/apk/keys/local-melange.rsa.pub",readonly \
-		--mount type=bind,source="$(TMP_REPOSITORIES_FILE)",destination="/etc/apk/repositories",readonly \
+		--mount type=bind,source="$(TMP_REPOS_FILE)",destination="/etc/apk/repositories",readonly \
 		-w "$(PACKAGES_CONTAINER_FOLDER)" \
 		cgr.dev/chainguard/wolfi-base:latest
-	@rm "$(TMP_REPOSITORIES_FILE)"
-	@rmdir "$(TMP_REPOSITORIES_DIR)"
+	@rm "$(TMP_REPOS_FILE)"
+	@rmdir "$(TMP_REPOS_DIR)"
 
 # This target spins up a docker container that is helpful for building images
 # using local packages.
@@ -143,19 +208,21 @@ local-wolfi:
 # docker load -i /tmp/out/conda-test.tar
 # docker run -it
 OUT_LOCAL_DIR ?= /work/out
-OUT_DIR ?= $(shell mktemp -d)
 OS_LOCAL_DIR ?= /work/os
 OS_DIR ?= ${PWD}
 dev-container-wolfi:
-	@echo "https://packages.wolfi.dev/os" > $(TMP_REPOSITORIES_FILE)
-	@echo "$(PACKAGES_CONTAINER_FOLDER)" >> $(TMP_REPOSITORIES_FILE)
+	$(eval TMP_REPOS_DIR := $(shell mktemp --tmpdir -d "$@.XXXXXX"))
+	$(eval TMP_REPOS_FILE := $(TMP_REPOS_DIR)/repositories)
+	$(eval OUT_DIR := $(shell echo $${OUT_DIR:-$$(mktemp --tmpdir -d "$@-out.XXXXXX")}))
+	@echo "https://packages.wolfi.dev/os" > $(TMP_REPOS_FILE)
+	@echo "$(PACKAGES_CONTAINER_FOLDER)" >> $(TMP_REPOS_FILE)
 	docker run --rm -it \
 		--mount type=bind,source="${OUT_DIR}",destination="$(OUT_LOCAL_DIR)" \
 		--mount type=bind,source="${OS_DIR}",destination="$(OS_LOCAL_DIR)",readonly \
 		--mount type=bind,source="${PWD}/packages",destination="$(PACKAGES_CONTAINER_FOLDER)",readonly \
 		--mount type=bind,source="${PWD}/local-melange.rsa.pub",destination="/etc/apk/keys/local-melange.rsa.pub",readonly \
-		--mount type=bind,source="$(TMP_REPOSITORIES_FILE)",destination="/etc/apk/repositories",readonly \
+		--mount type=bind,source="$(TMP_REPOS_FILE)",destination="/etc/apk/repositories",readonly \
 		-w "$(PACKAGES_CONTAINER_FOLDER)" \
-		ghcr.io/wolfi-dev/sdk:latest@sha256:954e0b8b77c9cbe82792c321787f5b73ab5765ee887df921a13778c9c0d30714
-	@rm "$(TMP_REPOSITORIES_FILE)"
-	@rmdir "$(TMP_REPOSITORIES_DIR)"
+		ghcr.io/wolfi-dev/sdk:latest@sha256:41ccdf9610e3dcd2470948615a96071bc860e15f06b092533fe09c0b265645db
+	@rm "$(TMP_REPOS_FILE)"
+	@rmdir "$(TMP_REPOS_DIR)"

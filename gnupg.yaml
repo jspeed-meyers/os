@@ -1,7 +1,7 @@
 package:
   name: gnupg
   version: 2.2.41
-  epoch: 0
+  epoch: 4
   description: GNU Privacy Guard 2 - meta package for full GnuPG suite
   copyright:
     - license: GPL-3.0-or-later
@@ -9,13 +9,16 @@ package:
 environment:
   contents:
     packages:
-      - busybox
-      - ca-certificates-bundle
-      - build-base
-      - automake
       - autoconf
+      - automake
+      - build-base
+      - busybox
       - bzip2-dev
+      - ca-certificates-bundle
       - gettext-dev
+      - glibc-iconv
+      # - pinentry TODO skipping for now as seems to require gtk+3.0, gcr, libproxy and mesa
+      - gnutls-dev
       - libassuan-dev
       - libgcrypt-dev
       - libgpg-error-dev
@@ -24,18 +27,23 @@ environment:
       - libusb-dev
       - npth-dev
       - openldap-dev
+      - openssf-compiler-options
+      - readline-dev
       - sqlite-dev
       - texinfo
       - zlib-dev
-      - gnutls-dev
-      - glibc-iconv
-      # - pinentry TODO skipping for now as seems to require gtk+3.0, gcr, libproxy and mesa
+  environment:
+    CPPFLAGS: -Wp,-DLDAP_DEPRECATED=1
 
 pipeline:
   - uses: fetch
     with:
       expected-sha256: 13f3291007a5e8546fcb7bc0c6610ce44aaa9b3995059d4f8145ba09fd5be3e1
       uri: https://gnupg.org/ftp/gcrypt/gnupg/gnupg-${{package.version}}.tar.bz2
+
+  - uses: patch
+    with:
+      patches: libassun-version.patch
 
   - uses: patch
     with:
@@ -128,6 +136,13 @@ subpackages:
           mv ${{targets.destdir}}/usr/libexec/dirmngr_ldap ${{targets.subpkgdir}}/usr/libexec/
           mv ${{targets.destdir}}/usr/share/gnupg/sks-keyservers.netCA.pem ${{targets.subpkgdir}}/usr/share/gnupg/
     description: GNU Privacy Guard 2 - network certificate management service
+    test:
+      pipeline:
+        - runs: |
+            dirmngr --version
+            dirmngr --help
+            dirmngr-client --version
+            dirmngr-client --help
 
   - name: gnupg-gpgconf
     dependencies:
@@ -142,6 +157,13 @@ subpackages:
           mv ${{targets.destdir}}/usr/bin/gpgconf ${{targets.subpkgdir}}/usr/bin/
           mv ${{targets.destdir}}/usr/share/gnupg/distsigkey.gpg ${{targets.subpkgdir}}/usr/share/gnupg/
     description: GNU Privacy Guard 2 - core configuration utilities
+    test:
+      pipeline:
+        - runs: |
+            gpg-connect-agent --version
+            gpg-connect-agent --help
+            gpgconf --version
+            gpgconf --help
 
   - name: gnupg-scdaemon
     dependencies:
@@ -176,6 +198,12 @@ subpackages:
 
           mv ${{targets.destdir}}/usr/bin/gpg ${{targets.subpkgdir}}/usr/bin/
           mv ${{targets.destdir}}/usr/bin/gpg2 ${{targets.subpkgdir}}/usr/bin/
+    test:
+      pipeline:
+        - runs: |
+            gpg --help
+            gpg2 --version
+            gpg2 --help
 
   - name: gpg-agent
     dependencies:
@@ -193,6 +221,11 @@ subpackages:
           mv ${{targets.destdir}}/usr/libexec/gpg-protect-tool ${{targets.subpkgdir}}/usr/libexec/
           mv ${{targets.destdir}}/usr/share/gnupg/help.txt ${{targets.subpkgdir}}/usr/share/gnupg/
     description: GNU Privacy Guard 2 - cryptographic agent
+    test:
+      pipeline:
+        - runs: |
+            gpg-agent --version
+            gpg-agent --help
 
   - name: gpg-wks-server
     dependencies:
@@ -203,6 +236,11 @@ subpackages:
           mkdir -p "${{targets.subpkgdir}}"/usr/bin
           mv ${{targets.destdir}}/usr/bin/gpg-wks-server ${{targets.subpkgdir}}/usr/bin/
     description: GNU Privacy Guard 2 - Web Key Service server
+    test:
+      pipeline:
+        - runs: |
+            gpg-wks-server --version
+            gpg-wks-server --help
 
   - name: gpgsm
     description: GNU Privacy Guard 2 - S/MIME version
@@ -210,6 +248,11 @@ subpackages:
       - runs: |
           mkdir -p "${{targets.subpkgdir}}"/usr/bin
           mv ${{targets.destdir}}/usr/bin/gpgsm ${{targets.subpkgdir}}/usr/bin/
+    test:
+      pipeline:
+        - runs: |
+            gpgsm --version
+            gpgsm --help
 
   - name: gpgv
     description: GNU Privacy Guard 2 - signature verification only
@@ -218,6 +261,13 @@ subpackages:
           mkdir -p "${{targets.subpkgdir}}"/usr/bin
           mv ${{targets.destdir}}/usr/bin/gpgv ${{targets.subpkgdir}}/usr/bin/
           mv ${{targets.destdir}}/usr/bin/gpgv2 ${{targets.subpkgdir}}/usr/bin/
+    test:
+      pipeline:
+        - runs: |
+            gpgv --version
+            gpgv --help
+            gpgv2 --version
+            gpgv2 --help
 
   - name: gnupg-utils
     pipeline:
@@ -225,8 +275,32 @@ subpackages:
           mkdir -p "${{targets.subpkgdir}}"/usr
           mv ${{targets.destdir}}/usr/* ${{targets.subpkgdir}}/usr/
     description: GNU Privacy Guard 2 - utility programs
+    test:
+      pipeline:
+        - runs: |
+            gpg-zip --version
+            gpg-zip --help
+            gpgparsemail --help
+            gpgsplit --version
+            gpgsplit --help
+            gpgtar --version
+            gpgtar --help
+            kbxutil --version
+            kbxutil --help
+            watchgnupg --version
+            watchgnupg --help
 
 update:
   enabled: true
   release-monitor:
     identifier: 243337
+
+test:
+  environment:
+    contents:
+      packages:
+        - gpg
+  pipeline:
+    - uses: test/hardening-check
+    - runs: |
+        gpg --version

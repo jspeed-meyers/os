@@ -1,7 +1,7 @@
 package:
   name: parallel
-  version: "20230922"
-  epoch: 0
+  version: "20240922"
+  epoch: 1
   description: "GNU parallel is a shell tool for executing jobs in parallel using one or more computers"
   copyright:
     - license: GPL-3.0-or-later
@@ -9,16 +9,16 @@ package:
 environment:
   contents:
     packages:
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
       - perl
 
 pipeline:
   - uses: fetch
     with:
       uri: https://ftp.gnu.org/gnu/parallel/parallel-${{package.version}}.tar.bz2
-      expected-sha256: 11447416dd5e5df65013cf7b4542e140938a3bfd5f3f3095c9edb168fcbfe063
+      expected-sha256: 63210715e8b7c5e129e098f333cd7cdd5fc7a2f325e8e0fb9ed6edba9f1acbc4
 
   - uses: autoconf/configure
 
@@ -28,7 +28,21 @@ pipeline:
 
   - uses: strip
 
+  # Remove files for envs we don't provide: strip
+  - runs: |
+      rm ${{targets.contextdir}}/usr/bin/env_parallel.ash \
+      ${{targets.contextdir}}/usr/bin/env_parallel.csh \
+      ${{targets.contextdir}}/usr/bin/env_parallel.ksh \
+      ${{targets.contextdir}}/usr/bin/env_parallel.mksh \
+      ${{targets.contextdir}}/usr/bin/env_parallel.pdksh \
+      ${{targets.contextdir}}/usr/bin/env_parallel.tcsh
+
 update:
   enabled: true
   release-monitor:
     identifier: 5448
+
+test:
+  pipeline:
+    - runs: |
+        parallel --help

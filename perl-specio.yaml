@@ -2,7 +2,7 @@
 package:
   name: perl-specio
   version: "0.48"
-  epoch: 1
+  epoch: 2
   description: Type constraints and coercions for Perl
   copyright:
     - license: Artistic-2.0
@@ -21,21 +21,21 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
       - perl
       - perl-dev
-      - perl-sub-quote
       - perl-devel-stacktrace
-      - perl-role-tiny
-      - perl-mro-compat
-      - perl-try-tiny
-      - perl-test-fatal
       - perl-eval-closure
       - perl-module-runtime
+      - perl-mro-compat
+      - perl-role-tiny
+      - perl-sub-quote
+      - perl-test-fatal
+      - perl-try-tiny
 
 pipeline:
   - uses: fetch

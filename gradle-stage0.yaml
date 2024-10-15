@@ -14,9 +14,9 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
       - build-base
       - busybox
+      - ca-certificates-bundle
       - zip
 
 pipeline:
@@ -41,4 +41,5 @@ pipeline:
       ln -sf /usr/share/java/gradle/bin/gradle ${{targets.destdir}}/usr/bin/gradle
 
 update:
-  enabled: false # don't auto update stage 0 packages
+  enabled: false
+  exclude-reason: don't auto update stage 0 packages

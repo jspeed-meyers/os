@@ -1,40 +1,74 @@
 # Generated from https://pypi.org/project/multidict/
 package:
   name: py3-multidict
-  version: 6.0.4
+  version: 6.1.0
   epoch: 2
   description: multidict implementation
   copyright:
-    - license: Apache 2
+    - license: Apache-2.0
   dependencies:
-    runtime:
-      - python3
+    provider-priority: 0
+
+vars:
+  pypi-package: multidict
+
+data:
+  - name: py-versions
+    items:
+      3.10: "310"
+      3.11: "311"
+      3.12: "312"
+      3.13: "300"
 
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - wolfi-base
-      - busybox
       - build-base
-      - python3-dev
-      - py3-setuptools
+      - busybox
+      - ca-certificates-bundle
+      - py3-supported-pip
+      - py3-supported-python-dev
+      - wolfi-base
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 3666906492efb76453c0e7b97f2cf459b0682e7402c0489a95484965dbc1da49
-      uri: https://files.pythonhosted.org/packages/4a/15/bd620f7a6eb9aa5112c4ef93e7031bcd071e0611763d8e17706ef8ba65e0/multidict-${{package.version}}.tar.gz
+      repository: https://github.com/aio-libs/multidict.git
+      tag: v${{package.version}}
+      expected-commit: 4140e63780dc6dd600a1837cb9b4c5198c3dcd68
 
-  - name: Python Build
-    runs: python setup.py build
+subpackages:
+  - range: py-versions
+    name: py${{range.key}}-${{vars.pypi-package}}
+    description: python${{range.key}} version of ${{vars.pypi-package}}
+    dependencies:
+      provider-priority: ${{range.value}}
+      provides:
+        - py3-${{vars.pypi-package}}
+    pipeline:
+      - uses: py/pip-build-install
+        with:
+          python: python${{range.key}}
+      - uses: strip
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python${{range.key}}
+            import: ${{vars.pypi-package}}
 
-  - name: Python Install
-    runs: python setup.py install --prefix=/usr --root="${{targets.destdir}}"
-
-  - uses: strip
+  - name: py3-supported-${{vars.pypi-package}}
+    description: meta package providing ${{vars.pypi-package}} for supported python versions.
+    dependencies:
+      runtime:
+        - py3.10-${{vars.pypi-package}}
+        - py3.11-${{vars.pypi-package}}
+        - py3.12-${{vars.pypi-package}}
+        - py3.13-${{vars.pypi-package}}
 
 update:
   enabled: true
-  release-monitor:
-    identifier: 11132
+  github:
+    identifier: aio-libs/multidict
+    strip-prefix: v
+    tag-filter: v

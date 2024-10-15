@@ -1,6 +1,6 @@
 package:
   name: prometheus-adapter
-  version: 0.11.1
+  version: 0.12.0
   epoch: 3
   description: Prometheus Adapter for Kubernetes Metrics APIs
   copyright:
@@ -17,14 +17,10 @@ pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/kubernetes-sigs/prometheus-adapter
-      expected-commit: 4cc5de93cbaabdb273c50c7d8a28378981938326
+      expected-commit: 17cef511b1854441490bceeca7a710a04ce091ad
       tag: v${{package.version}}
 
   - runs: |
-      # Handle CVE-2023-39325 and CVE-2023-3978
-      go get golang.org/x/net@v0.17.0
-      go mod tidy
-
       make prometheus-adapter
 
   - runs: |

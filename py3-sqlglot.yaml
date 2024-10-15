@@ -1,40 +1,74 @@
-# Generated from https://pypi.org/project/sqlglot/
 package:
   name: py3-sqlglot
-  version: 18.16.1
+  version: 25.25.0
   epoch: 0
   description: An easily customizable SQL parser and transpiler
   copyright:
     - license: MIT
   dependencies:
-    runtime:
-      - python3
+    provider-priority: 0
+
+vars:
+  pypi-package: sqlglot
+  import: sqlglot
+
+data:
+  - name: py-versions
+    items:
+      3.10: '310'
+      3.11: '311'
+      3.12: '312'
+      3.13: '300'
 
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - wolfi-base
-      - busybox
-      - build-base
-      - python3
-      - py3-setuptools
-      - py3-pip
+      - py3-supported-build-base
+      - py3-supported-pip
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/tobymao/sqlglot
       tag: v${{package.version}}
-      expected-commit: be3896441016f0356ca3d3c02f74deed6a63879e
+      expected-commit: 4da25029b1c6f1425b4602f42da4fa1bcd3fccdb
 
-  - name: Python Build
-    runs: python setup.py build
+subpackages:
+  - range: py-versions
+    name: py${{range.key}}-${{vars.pypi-package}}
+    description: python${{range.key}} version of ${{vars.pypi-package}}
+    dependencies:
+      provider-priority: ${{range.value}}
+      provides:
+        - py3-${{vars.pypi-package}}
+    pipeline:
+      - uses: py/pip-build-install
+        with:
+          python: python${{range.key}}
+      - uses: strip
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python${{range.key}}
+            imports: |
+              import ${{vars.import}}
 
-  - name: Python Install
-    runs: python setup.py install --prefix=/usr --root="${{targets.destdir}}"
+  - name: py3-supported-${{vars.pypi-package}}
+    description: meta package providing ${{vars.pypi-package}} for supported python versions.
+    dependencies:
+      runtime:
+        - py3.10-${{vars.pypi-package}}
+        - py3.11-${{vars.pypi-package}}
+        - py3.12-${{vars.pypi-package}}
+        - py3.13-${{vars.pypi-package}}
 
-  - uses: strip
+test:
+  pipeline:
+    - uses: python/import
+      with:
+        imports: |
+          import ${{vars.import}}
 
 update:
   enabled: true

@@ -1,6 +1,6 @@
 package:
   name: mariadb-connector-c
-  version: 3.3.7
+  version: 3.4.1
   epoch: 0
   description: The MariaDB Native Client library (C driver)
   copyright:
@@ -9,20 +9,20 @@ package:
 environment:
   contents:
     packages:
+      - autoconf
+      - automake
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
-      - automake
-      - autoconf
-      - openssl-dev
-      - zlib-dev
       - cmake
+      - openssl-dev
       - samurai
+      - zlib-dev
 
 pipeline:
   - uses: fetch
     with:
-      expected-sha256: 975a9a862fed80f84e0206373f7ef05537aada5b65d99b71b36ab892b44240bf
+      expected-sha256: 0a7f2522a44a7369c1dda89676e43485037596a7b1534898448175178aedeb4d
       uri: https://mirror.vpsfree.cz/mariadb/connector-c-${{package.version}}/mariadb-connector-c-${{package.version}}-src.tar.gz
 
   - runs: |
@@ -61,13 +61,17 @@ subpackages:
   - name: mariadb-connector-c-dev
     pipeline:
       - uses: split/dev
-      - runs: |
-          mkdir -p "${{targets.subpkgdir}}"/usr/
-          mv "${{targets.destdir}}"/usr/bin "${{targets.subpkgdir}}"/usr/
     dependencies:
       replaces:
         - mariadb-dev
     description: mariadb-connector-c dev
+    test:
+      pipeline:
+        - runs: |
+            mariadb_config --version
+            mariadb_config --help
+            mysql_config --version
+            mysql_config --help
 
 update:
   enabled: true

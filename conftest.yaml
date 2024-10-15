@@ -1,7 +1,7 @@
 package:
   name: conftest
-  version: 0.46.0
-  epoch: 0
+  version: 0.55.0
+  epoch: 2
   description: Write tests against structured configuration data using the Open Policy Agent Rego query language
   copyright:
     - license: Apache-2.0
@@ -12,18 +12,21 @@ package:
 pipeline:
   - uses: git-checkout
     with:
+      expected-commit: 99d588fa8d0864c727b9569e7b84126a9dd6b45b
       repository: https://github.com/open-policy-agent/conftest
       tag: v${{package.version}}
-      expected-commit: 79220b5b2de5fb851aaaacebb2568353251432cb
+
+  - uses: go/bump
+    with:
+      deps: github.com/open-policy-agent/opa@v0.68.0
+      modroot: .
 
   - uses: go/build
     with:
+      ldflags: -X github.com/open-policy-agent/conftest/internal/commands.version=${{package.version}}
       modroot: .
-      packages: .
       output: conftest
-      ldflags: -w -s -X github.com/open-policy-agent/conftest/internal/commands.version=${{package.version}}
-      # CVE-2023-39325 and CVE-2023-44487
-      deps: golang.org/x/net@v0.17.0
+      packages: .
 
   - uses: strip
 
@@ -32,3 +35,14 @@ update:
   github:
     identifier: open-policy-agent/conftest
     strip-prefix: v
+
+test:
+  pipeline:
+    - name: Verify conftest help command
+      runs: |
+        conftest --help
+        conftest --version
+    - name: Verify a simple Rego policy
+      runs: |
+        echo 'package main' > test.rego
+        conftest verify -p test.rego

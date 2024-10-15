@@ -1,7 +1,7 @@
 package:
   name: libtbb
-  version: 2021.10.0
-  epoch: 0
+  version: 2021.13.0
+  epoch: 1
   description: "oneAPI Threading Building Blocks"
   copyright:
     - license: GPL-2.0-only
@@ -9,18 +9,20 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-baselayout
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
       - cmake
+      - openssf-compiler-options
       - samurai
+      - wolfi-baselayout
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/oneapi-src/oneTBB/archive/v${{package.version}}.tar.gz
-      expected-sha256: 487023a955e5a3cc6d3a0d5f89179f9b6c0ae7222613a7185b0227ba0c83700b
+      repository: https://github.com/oneapi-src/oneTBB
+      tag: v${{package.version}}
+      expected-commit: 1c4c93fc5398c4a1acb3492c02db4699f3048dea
 
   - name: 'Set version and types'
     runs: |

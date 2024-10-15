@@ -1,6 +1,6 @@
 package:
   name: curl-rustls
-  version: 8.4.0
+  version: 8.10.1
   epoch: 0
   description: "URL retrieval utility and library"
   copyright:
@@ -15,21 +15,35 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-base
+      - autoconf
+      - automake
+      - brotli-dev
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
+      - libpsl-dev
+      - libtool
       - nghttp2-dev
       - openssl-dev
+      - perl
+      - rustls-ffi-dev
+      - wolfi-base
       - zlib-dev
-      - brotli-dev
-      - rustls-ffi
+
+var-transforms:
+  - from: ${{package.version}}
+    match: \.
+    replace: _
+    to: mangled-package-version
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://curl.se/download/curl-${{package.version}}.tar.xz
-      expected-sha256: 16c62a9c4af0f703d28bda6d7bbf37ba47055ad3414d70dec63e2e6336f2a82d
+      repository: https://github.com/curl/curl.git
+      tag: curl-${{vars.mangled-package-version}}
+      expected-commit: 7eb8c048470ed2cc14dca75be9c1cdae7ac8498b
+
+  - runs: autoreconf -vif
 
   - uses: autoconf/configure
     with:

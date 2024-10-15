@@ -1,38 +1,65 @@
 package:
   name: py3-pluggy
-  version: 1.3.0
-  epoch: 3
-  description: "Plugin management and hook calling for Python"
+  version: 1.5.0
+  epoch: 5
+  description: Plugin management and hook calling for Python
   copyright:
     - license: MIT
-  dependencies:
-    runtime:
-      - python3
+
+vars:
+  pypi-package: pluggy
+
+data:
+  - name: py-versions
+    items:
+      3.10: '310'
+      3.11: '311'
+      3.12: '312'
+      3.13: '300'
 
 environment:
   contents:
     packages:
-      - wolfi-base
-      - busybox
-      - ca-certificates-bundle
       - build-base
-      - python3
-      - py3-setuptools
-      - py3-pip
+      - busybox
+      - py3-supported-pip
+      - py3-supported-python
+      - py3-supported-setuptools-scm
+      - py3-supported-wheel
 
 pipeline:
   - uses: fetch
     with:
       uri: https://files.pythonhosted.org/packages/source/p/pluggy/pluggy-${{package.version}}.tar.gz
-      expected-sha512: d4dbb449f533649da161d7e49f82da5800dabdace4f7aa239c412290470612a45a3ba3c50cafd7bd9ed26cb3aa14648bfa3ed3f41fc0db9ae9399fd7f5933d5f
+      expected-sha512: 032d41e1f2bed56eff22463c4645516e9415ee253e0a3fe5ba83a8de5e21700baae1f6384c979d2c6f622e4216a2b745eec489bc04f52a576d423e771365cc7a
 
-  - runs: |
-      python3 setup.py build
+subpackages:
+  - range: py-versions
+    name: py${{range.key}}-${{vars.pypi-package}}
+    description: ${{vars.pypi-package}} installed for python${{range.key}}
+    dependencies:
+      provides:
+        - py3-${{vars.pypi-package}}
+      provider-priority: ${{range.value}}
+    pipeline:
+      - uses: py/pip-build-install
+        with:
+          python: python${{range.key}}
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python${{range.key}}
+            import: ${{vars.pypi-package}}
 
-  - runs: |
-      python3 setup.py install --prefix=/usr --root="${{targets.destdir}}"
-
-  - uses: strip
+  - name: py3-supported-${{vars.pypi-package}}
+    description: meta package providing ${{vars.pypi-package}} for supported python versions.
+    dependencies:
+      runtime:
+        - py3.10-${{vars.pypi-package}}
+        - py3.11-${{vars.pypi-package}}
+        - py3.12-${{vars.pypi-package}}
+        - py3.13-${{vars.pypi-package}}
 
 update:
   enabled: true

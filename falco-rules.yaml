@@ -1,6 +1,6 @@
 package:
   name: falco-rules
-  version: 2.0.0
+  version: 3.2.0
   epoch: 0
   description: Falco rule repository
   copyright:
@@ -9,20 +9,16 @@ package:
 environment:
   contents:
     packages:
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/falcosecurity/rules
       tag: falco-rules-${{package.version}}
-      expected-commit: 97308654f2e43baca516f61d5b43c5cfc7eb6e10
-
-  - uses: patch
-    with:
-      patches: remove-broken-rule.patch
+      expected-commit: b6ad37371923b28d4db399cf11bd4817f923c286
 
   - runs: |
       install -Dm755 ./rules/falco_rules.yaml "${{targets.destdir}}"/etc/falco/falco_rules.yaml

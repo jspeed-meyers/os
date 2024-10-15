@@ -1,6 +1,6 @@
 package:
   name: at-spi2-core
-  version: 2.50.0
+  version: 2.54.0
   epoch: 0
   description: Protocol definitions and daemon for D-Bus at-spi
   copyright:
@@ -9,11 +9,12 @@ package:
 environment:
   contents:
     packages:
+      - build-base
       - busybox
       - ca-certificates-bundle
-      - build-base
       - dbus-dev
       - glib-dev
+      - glib-gir
       - gobject-introspection-dev
       - libxml2-dev
       - libxtst-dev
@@ -31,7 +32,7 @@ var-transforms:
 pipeline:
   - uses: fetch
     with:
-      expected-sha256: e9f5a8c8235c9dd963b2171de9120301129c677dde933955e1df618b949c4adc
+      expected-sha256: d7eee7e75beddcc272cedc2b60535600f3aae6e481589ebc667afc437c0a6079
       uri: https://download.gnome.org/sources/at-spi2-core/${{vars.mangled-package-version}}/at-spi2-core-${{package.version}}.tar.xz
 
   - uses: meson/configure

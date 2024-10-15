@@ -1,41 +1,44 @@
 package:
   name: nodejs-18
-  version: 18.18.2 # When bumping this, also bump the provides below!
+  version: 18.20.4
   epoch: 0
   description: "JavaScript runtime built on V8 engine - LTS version"
   copyright:
     - license: MIT
   dependencies:
-    runtime:
-      - npm
     provides:
-      - nodejs=18.18.999
+      - nodejs=${{package.full-version}}
       - nodejs-lts=18
+  resources:
+    cpu: 33
+    memory: 64Gi
 
 environment:
   contents:
     packages:
       - brotli-dev
+      - build-base
+      - busybox
       - c-ares-dev
+      - ca-certificates-bundle
       - icu-dev
+      - libuv-dev
       - linux-headers
       - nghttp2-dev
       - openssl-dev
-      - python3
-      - py3-setuptools
       - py3-jinja2
+      - py3-setuptools
+      - python3
       - samurai
-      - zlib-dev
       - wolfi-base
-      - busybox
-      - ca-certificates-bundle
-      - build-base
+      - zlib-dev
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://nodejs.org/dist/v${{package.version}}/node-v${{package.version}}.tar.gz
-      expected-sha256: 509cd2cfc3a515bf2257ed3886b9fac64aeaac2a70ea59c0a6e02e2dbb722132
+      repository: https://github.com/nodejs/node.git
+      tag: v${{package.version}}
+      expected-commit: e922fb64b53530af4ad2e3df298a302225645f5b
 
   - name: Configure and build
     runs: |
@@ -55,6 +58,7 @@ pipeline:
         --shared-openssl \
         --shared-cares \
         --shared-nghttp2 \
+        --shared-libuv \
         --ninja \
         --openssl-use-def-ca-store \
         --with-icu-default-data-dir=$(icu-config --icudatadir) \
@@ -86,3 +90,23 @@ update:
     strip-prefix: v
     use-tag: true
     tag-filter: v18.
+
+test:
+  pipeline:
+    - name: Verify Node.js Installation
+      runs: |
+        node --version || exit 1
+        node --help
+    - name: Execute Basic JavaScript
+      runs: |
+        cat <<'EOF' > test.js
+        console.log('Hello, World!');
+        EOF
+        node test.js | grep 'Hello, World!' || exit 1
+    - name: Test International Number Formatting
+      runs: |
+        cat <<'EOF' > testIntl.js
+        console.log(new Intl.NumberFormat('en-EN').format(1234.56));
+        console.log(new Intl.NumberFormat('de-DE').format(1234.56));
+        EOF
+        node testIntl.js | grep '1,234.56' && node testIntl.js | grep '1.234,56' || exit 1

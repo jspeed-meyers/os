@@ -1,50 +1,88 @@
 package:
   name: py3-awscrt
-  version: 0.19.5
-  epoch: 0
-  description: "Python bindings for the AWS Common Runtime"
+  version: 0.22.0
+  epoch: 1
+  description: Python bindings for the AWS Common Runtime
   copyright:
     - license: Apache-2.0
   dependencies:
-    runtime:
-      - python3
+    provider-priority: 0
+
+vars:
+  pypi-package: awscrt
+  import: awscrt
+
+data:
+  - name: py-versions
+    items:
+      3.10: '310'
+      3.11: '311'
+      3.12: '312'
+      3.13: '300'
 
 environment:
   contents:
     packages:
-      - wolfi-base
-      - busybox
-      - ca-certificates-bundle
-      - build-base
-      - py3-gpep517
-      - py3-wheel
-      - python3-dev
-      - py3-setuptools
-      - openssl-dev
-      - samurai
       - aws-crt-cpp-dev
+      - cmake
+      - openssf-compiler-options
+      - openssl-dev
+      - py3-supported-build-base-dev
+      - py3-supported-gpep517
+      - samurai
+  environment:
+    AWS_CRT_BUILD_USE_SYSTEM_LIBCRYPTO: 1
 
 pipeline:
   - uses: git-checkout
     with:
       repository: https://github.com/awslabs/aws-crt-python
       tag: v${{package.version}}
-      expected-commit: 00e826a3ae33f5cb50476f68df971fbb06434a39
+      expected-commit: 5a67c680c948454c18218c54f0d949d4b92ebea1
+      recurse-submodules: true
 
   - runs: |
       # Allow linking to shared libraries
-      sed -i '/:lib/d' setup.py
+      sed -i.dist '/:lib/d' setup.py
+      diff -u setup.py.dist setup.py &&
+          { echo "attempted change to setup.py did nothing"; exit 1; }
 
-      export AWS_CRT_BUILD_USE_SYSTEM_LIBCRYPTO=1
-      python3 -m gpep517 build-wheel \
-        --wheel-dir dist \
-        --output-fd 3 3>&1 >&2
+subpackages:
+  - range: py-versions
+    name: py${{range.key}}-${{vars.pypi-package}}
+    description: python${{range.key}} version of ${{vars.pypi-package}}
+    dependencies:
+      provider-priority: ${{range.value}}
+      provides:
+        - py3-${{vars.pypi-package}}
+    pipeline:
+      - uses: py/pip-build-install
+        with:
+          python: python${{range.key}}
+      - uses: strip
+    test:
+      pipeline:
+        - uses: python/import
+          with:
+            python: python${{range.key}}
+            imports: |
+              import ${{vars.import}}
 
-  - runs: |
-      python3 -m installer -d "${{targets.destdir}}" \
-      dist/*.whl
+  - name: py3-supported-${{vars.pypi-package}}
+    description: meta package providing ${{vars.pypi-package}} for supported python versions.
+    dependencies:
+      runtime:
+        - py3.10-${{vars.pypi-package}}
+        - py3.11-${{vars.pypi-package}}
+        - py3.12-${{vars.pypi-package}}
+        - py3.13-${{vars.pypi-package}}
 
-  - uses: strip
+test:
+  pipeline:
+    - uses: python/import
+      with:
+        imports: |
+          import ${{vars.import}}
 
 update:
   enabled: true

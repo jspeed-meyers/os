@@ -1,0 +1,39 @@
+# Generated from https://pypi.org/project/pycryptodome/
+package:
+  name: py3-pycryptodome
+  version: 3.21.0
+  epoch: 0
+  description: Cryptographic library for Python
+  copyright:
+    - license: BSD-3-Clause
+
+environment:
+  contents:
+    packages:
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - wolfi-base
+
+pipeline:
+  - uses: fetch
+    with:
+      expected-sha256: f7787e0d469bdae763b876174cf2e6c0f7be79808af26b1da96f1a64bcf47297
+      uri: https://files.pythonhosted.org/packages/source/p/pycryptodome/pycryptodome-${{package.version}}.tar.gz
+
+  - name: Python Build
+    uses: python/build-wheel
+
+  - uses: strip
+
+test:
+  pipeline:
+    - uses: python/import
+      with:
+        imports: |
+          import Crypto
+
+update:
+  enabled: true
+  release-monitor:
+    identifier: 36849

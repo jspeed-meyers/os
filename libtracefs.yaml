@@ -1,6 +1,6 @@
 package:
   name: libtracefs
-  version: 1.7.0
+  version: 1.8.1
   epoch: 0
   description: "Linux kernel trace file system library"
   copyright:
@@ -9,17 +9,17 @@ package:
 environment:
   contents:
     packages:
-      - wolfi-base
-      - ca-certificates-bundle
       - build-base
-      - linux-headers
+      - ca-certificates-bundle
       - libtraceevent-dev
+      - linux-headers
+      - wolfi-base
 
 pipeline:
   - uses: fetch
     with:
       uri: https://git.kernel.org/pub/scm/libs/libtrace/libtracefs.git/snapshot/libtracefs-${{package.version}}.tar.gz
-      expected-sha256: 411fcbf3434ecbaefa6c2b1bf092266293a672e2d7ee46fdd6b402753cb8bd16
+      expected-sha256: d295aa20d711c313a9e229dbd15ba14026f0c1a50d57ae8b0823cc561b23745f
 
   - uses: autoconf/make
 

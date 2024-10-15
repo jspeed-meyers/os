@@ -1,25 +1,25 @@
 package:
   name: neo4j
-  version: 5.12.0
+  version: 5.24.1
   epoch: 0
   description:
   copyright:
-    - license: GPL-3.0
+    - license: GPL-3.0-or-later
   dependencies:
     runtime:
-      - openjdk-17-jre
       - bash
+      - openjdk-17-jre
 
 environment:
   contents:
     packages:
+      - bash
       - busybox
       - ca-certificates-bundle
       - curl
       - maven
       - openjdk-17
       - openjdk-17-default-jvm
-      - bash
       - wolfi-base
       - wolfi-baselayout
 
@@ -28,9 +28,7 @@ pipeline:
     with:
       repository: https://github.com/neo4j/neo4j
       tag: ${{package.version}}
-      expected-commit: 9bc54459577a280cfdd6d0d167739132badb9212
-
-  - uses: maven/configure-mirror
+      expected-commit: 36189414bfc36204f8e7fa4d37d80459439da30a
 
   - runs: |
       export LANG=en_US.UTF-8

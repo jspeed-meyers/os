@@ -1,0 +1,34 @@
+package:
+  name: speedtest-go
+  version: 1.7.9
+  epoch: 1
+  description: CLI and Go API to Test Internet Speed using speedtest.net
+  copyright:
+    - license: MIT
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/showwin/speedtest-go
+      expected-commit: dd78c657d0f3a36cdf8623021fb00b0de6b3c958
+      tag: v${{package.version}}
+
+  - uses: go/build
+    with:
+      packages: .
+      output: speedtest-go
+      ldflags: -s -w
+
+test:
+  pipeline:
+    - runs: |
+        speedtest-go
+        speedtest-go --version
+        speedtest-go --help
+
+update:
+  enabled: true
+  github:
+    identifier: showwin/speedtest-go
+    strip-prefix: v
+    tag-filter: v

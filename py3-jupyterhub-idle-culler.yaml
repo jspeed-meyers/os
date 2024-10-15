@@ -1,0 +1,44 @@
+# Generated from https://pypi.org/project/jupyterhub-idle-culler/
+package:
+  name: py3-jupyterhub-idle-culler
+  version: 1.4.0
+  epoch: 0
+  copyright:
+    - license: BSD-3-Clause
+  dependencies:
+    runtime:
+      - py3-tornado
+      - py3-python-dateutil
+      - python-3
+
+environment:
+  environment:
+    # This is needed to work around the error "ValueError: ZIP does not support timestamps before 1980"
+    SOURCE_DATE_EPOCH: 315532800
+  contents:
+    packages:
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - py3-setuptools
+      - python-3
+      - wolfi-base
+
+pipeline:
+  - uses: git-checkout
+    with:
+      expected-commit: cdb229c817e0752c98ee1a3fdb1a3dd605db29c6
+      repository: https://github.com/jupyterhub/jupyterhub-idle-culler
+      tag: ${{package.version}}
+
+  - name: Python Build
+    uses: python/build-wheel
+
+  - uses: strip
+
+update:
+  enabled: true
+  manual: false
+  github:
+    identifier: jupyterhub/jupyterhub-idle-culler
+    use-tag: true

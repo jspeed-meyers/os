@@ -1,6 +1,6 @@
 package:
   name: terragrunt
-  version: 0.52.4
+  version: 0.68.1
   epoch: 0
   description: Thin wrapper for Terraform providing extra tools
   copyright:
@@ -12,22 +12,41 @@ package:
 environment:
   contents:
     packages:
-      - ca-certificates-bundle
-      - busybox
       - build-base
+      - busybox
+      - ca-certificates-bundle
       - go
+      - mockery
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      expected-sha256: 974a1c0f42af567fecde08957ba66a9cc97318ab47453fcb58cbe6a0df12555e
-      uri: https://github.com/gruntwork-io/terragrunt/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-commit: 7108133618991a39a7421f92d173432553330309
+      repository: https://github.com/gruntwork-io/terragrunt
+      tag: v${{package.version}}
 
-  - runs: |
-      go build -v -o bin/terragrunt -ldflags "-s -w -X main.VERSION=v${{package.version}}"
-      install -Dm755 bin/terragrunt "${{targets.destdir}}"/usr/bin/terragrunt
+  - runs: go generate ./...
+
+  - uses: go/bump
+    with:
+      deps: github.com/anchore/archiver/v3@v3.5.2
+      replaces: github.com/mholt/archiver/v3=github.com/anchore/archiver/v3@v3.5.2
+
+  - uses: go/build
+    with:
+      output: terragrunt
+      packages: .
+      ldflags: "-X  github.com/gruntwork-io/go-commons/version.Version=v${{package.version}}"
 
   - uses: strip
+
+test:
+  pipeline:
+    - name: Verify terragrunt
+      runs: |
+        set -o pipefail
+        terragrunt --version
+        terragrunt --help
 
 update:
   enabled: true
