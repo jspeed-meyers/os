@@ -30,7 +30,7 @@ jobs:
 
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/wolfi-dev/sdk:latest@sha256:41ccdf9610e3dcd2470948615a96071bc860e15f06b092533fe09c0b265645db
+      image: ghcr.io/wolfi-dev/sdk:latest@sha256:1674addbde81a3228d19516119c48e2b55ec41159383d3cd4d8b76be6d316420
 
     permissions:
       id-token: write
@@ -114,7 +114,7 @@ jobs:
           )
 
           BUNDLE=$(wolfictl bundle \
-            --bundle-base ghcr.io/wolfi-dev/sdk:latest@sha256:41ccdf9610e3dcd2470948615a96071bc860e15f06b092533fe09c0b265645db \
+            --bundle-base ghcr.io/wolfi-dev/sdk:latest@sha256:1674addbde81a3228d19516119c48e2b55ec41159383d3cd4d8b76be6d316420 \
             --bundle-repo "${BUNDLE_REPO}" \
             ${COMMON_FLAGS} \
             --runner bubblewrap \
@@ -150,7 +150,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907 # v2.3.0
+      - uses: rtCamp/action-slack-notify@65e6fc1ce697e2df8149d9ae9909acc5ec5599ce # v2.3.1
         env:
           SLACK_ICON: http://github.com/chainguard-dev.png?size=48
           SLACK_USERNAME: guardian

@@ -1,7 +1,7 @@
 package:
   name: libxml2
   version: 2.13.4
-  epoch: 0
+  epoch: 1
   description: XML parsing library, version 2
   copyright:
     - license: MIT
@@ -23,6 +23,7 @@ environment:
       - busybox
       - ca-certificates-bundle
       - libtool
+      - openssf-compiler-options
       - pkgconf-dev
       - python3-dev
       - xz-dev
@@ -132,6 +133,7 @@ subpackages:
             echo 'int main() {return 0;}' >> test.c
             gcc -o test test.c $(xml2-config --cflags) $(xml2-config --libs)
             ./test || exit 1
+        - uses: test/pkgconf
 
 update:
   enabled: true

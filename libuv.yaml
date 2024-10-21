@@ -1,7 +1,7 @@
 package:
   name: libuv
   version: 1.49.1
-  epoch: 0
+  epoch: 1
   description: "cross-platform asynchronous I/O library"
   copyright:
     - license: MIT AND ISC
@@ -14,6 +14,7 @@ environment:
       - busybox
       - ca-certificates-bundle
       - libtool
+      - openssf-compiler-options
       - wolfi-base
 
 pipeline:
@@ -41,6 +42,9 @@ subpackages:
     dependencies:
       runtime:
         - libuv
+    test:
+      pipeline:
+        - uses: test/pkgconf
 
 update:
   enabled: true

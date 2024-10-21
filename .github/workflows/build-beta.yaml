@@ -152,7 +152,7 @@ jobs:
 
     container:
       # NOTE: This step only signs and uploads, so it doesn't need any privileges
-      image: ghcr.io/wolfi-dev/sdk:latest@sha256:41ccdf9610e3dcd2470948615a96071bc860e15f06b092533fe09c0b265645db
+      image: ghcr.io/wolfi-dev/sdk:latest@sha256:1674addbde81a3228d19516119c48e2b55ec41159383d3cd4d8b76be6d316420
 
     steps:
       - name: Harden Runner
